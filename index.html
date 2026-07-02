@@ -761,10 +761,29 @@
       scheduled = true;
       requestAnimationFrame(function () { scheduled = false; renderIcons(); });
     }
+    // Cuma jadwalin scan ulang ikon (operasi seluruh-halaman, lumayan berat)
+    // kalau mutasi yang masuk BENERAN nambah elemen baru yang punya ikon —
+    // bukan tiap ada perubahan DOM apapun di seluruh app (mis. jam header
+    // yang ganti tiap detik). Dulu semua mutasi (termasuk yang gak ada
+    // hubungannya sama ikon) bikin scan ulang, numpuk jadi jank di HP
+    // low-end & bikin tap kadang kerasa "harus ditekan 2x".
+    function hasIconNode(nodes) {
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.nodeType !== 1) continue;
+        if (n.hasAttribute && n.hasAttribute('data-lucide')) return true;
+        if (n.querySelector && n.querySelector('[data-lucide]')) return true;
+      }
+      return false;
+    }
     window.addEventListener('DOMContentLoaded', renderIcons);
     window.addEventListener('load', renderIcons);
     var root = document.querySelector('.container') || document.body;
-    new MutationObserver(schedule).observe(root, { childList: true, subtree: true });
+    new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (hasIconNode(mutations[i].addedNodes)) { schedule(); return; }
+      }
+    }).observe(root, { childList: true, subtree: true });
   })();
 </script>
 

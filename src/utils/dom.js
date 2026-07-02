@@ -207,13 +207,20 @@ export function updateHeroState() {
 
 // Jam & tanggal header SELALU WITA (Asia/Makassar), bukan timezone device,
 // supaya konsisten dengan tanggal/status yang dihitung server.
+// Dipanggil tiap 1 detik (lihat main.js) selama app kebuka, TANPA peduli tab
+// mana yang aktif. Nulis textContent cuma kalau nilainya BENERAN berubah —
+// mutation DOM yang gak perlu (tiap detik, teksnya sama, 59 dari 60x) bikin
+// MutationObserver di index.html (buat re-render ikon Lucide) kepicu sia-sia
+// terus-menerus, yang di HP low-end bisa numpuk jadi jank & bikin tap kerasa
+// "harus ditekan 2x" pas nabrak momen itu.
 export function updateClock() {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hour12: false });
   const dateStr = now.toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', weekday: 'long', day: 'numeric', month: 'long' });
+  const combined = timeStr + ' | ' + dateStr;
 
   const el = document.getElementById('currentDateTime');
-  if (el) el.textContent = timeStr + ' | ' + dateStr;
+  if (el && el.textContent !== combined) el.textContent = combined;
 }
 
 // ===== UPDATE TOMBOL ABSEN =====
