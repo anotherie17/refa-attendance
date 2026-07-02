@@ -3,6 +3,32 @@ import { supabaseClient } from '../services/supabase.js';
 import { showError, showSuccess, showFieldError } from '../utils/modal.js';
 import { getErrorMessage, formatDateLabel , escapeHtml} from '../utils/helpers.js';
 
+// Ambil ulang saldo & jatah cuti dari server tiap buka tab Pengajuan —
+// angka di state bisa basi kalau superadmin baru saja approve cuti
+// (saldo dipotong di server, state lokal masih nilai saat login).
+export async function refreshLeaveBalance() {
+  if (!supabaseClient || !state.currentEmployee?.id) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('employees')
+      .select('leave_balance, leave_entitlement')
+      .eq('id', state.currentEmployee.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return;
+
+    state.currentEmployee.leave_balance = data.leave_balance;
+    state.currentEmployee.leave_entitlement = data.leave_entitlement;
+
+    const balEl = document.getElementById('leaveBalance');
+    const entEl = document.getElementById('leaveEntitlement');
+    if (balEl) balEl.textContent = (data.leave_balance || 0) + ' Hari';
+    if (entEl) entEl.textContent = (data.leave_entitlement || 0) + ' Hari';
+  } catch (err) {
+    console.error('refreshLeaveBalance error:', err);
+  }
+}
+
 export async function submitLeaveRequest() {
   if (state.isSubmitting) return;
 

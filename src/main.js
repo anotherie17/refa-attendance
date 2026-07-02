@@ -52,8 +52,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       dayoff.loadHomeDayOffCard();
     } else {
       adminDashboard.populateRingkasanMonthFilter();
+      // loadRingkasanDashboard() sudah memanggil loadBirthdayReminder() di dalamnya.
       await adminDashboard.loadRingkasanDashboard();
-      await adminDashboard.loadBirthdayReminder();
       adminDashboard.setTrenMode('semua');
       adminDashboard.populateKalenderAdminFilter();
       adminDashboard.populateKalenderAdminMonthFilter();
@@ -86,8 +86,8 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       dayoff.loadHomeDayOffCard();
     } else {
       adminDashboard.populateRingkasanMonthFilter();
+      // loadRingkasanDashboard() sudah memanggil loadBirthdayReminder() di dalamnya.
       await adminDashboard.loadRingkasanDashboard();
-      await adminDashboard.loadBirthdayReminder();
       adminDashboard.setTrenMode('semua');
       adminDashboard.populateKalenderAdminFilter();
       adminDashboard.populateKalenderAdminMonthFilter();
@@ -146,6 +146,7 @@ document.querySelectorAll('.quick-tab').forEach(btn => {
     }
     if (section === 'leave') {
       switchPengajuanView('cuti');
+      leave.refreshLeaveBalance();
       leave.loadLeaveRequests();
       dayoff.loadDayOffSection();
       special.loadSpecialPermissions();

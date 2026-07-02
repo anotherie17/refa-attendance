@@ -223,6 +223,9 @@ export function getErrorMessage(err, context) {
   if (lower.includes('invalid login credentials')) {
     return 'Email atau password salah. Silakan periksa kembali.';
   }
+  if (lower.includes('banned')) {
+    return 'Akun Anda telah dinonaktifkan. Hubungi admin untuk informasi lebih lanjut.';
+  }
   if (lower.includes('email not confirmed')) {
     return 'Email belum terverifikasi. Hubungi admin untuk bantuan.';
   }

@@ -359,11 +359,10 @@ export async function saveEmployee() {
 }
 
 export async function toggleEmployeeActive(employeeId, isCurrentlyActive) {
-  const action = isCurrentlyActive ? 'menonaktifkan' : 'mengaktifkan';
   const confirmed = await showConfirm(
     isCurrentlyActive ? 'Nonaktifkan Karyawan?' : 'Aktifkan Karyawan?',
     isCurrentlyActive
-      ? 'Karyawan ini tidak akan bisa login setelah dinonaktifkan. Data riwayat absensi dan cuti tetap aman dan tidak terhapus.'
+      ? 'Karyawan ini tidak akan bisa login dan sesi aktifnya ditutup. Data riwayat absensi dan cuti tetap aman dan tidak terhapus.'
       : 'Karyawan ini akan bisa login dan menggunakan sistem kembali.',
     isCurrentlyActive ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan'
   );
@@ -371,17 +370,31 @@ export async function toggleEmployeeActive(employeeId, isCurrentlyActive) {
   if (!confirmed) return;
 
   try {
-    const { error } = await supabaseClient
-      .from('employees')
-      .update({ is_active: !isCurrentlyActive })
-      .eq('id', employeeId);
+    // Lewat edge function (bukan update tabel langsung) supaya sesi login
+    // karyawan ikut ditutup/dipulihkan sekaligus (ban/unban akun auth).
+    const { data, error } = await supabaseClient.functions.invoke('set-employee-active', {
+      body: { employee_id: employeeId, is_active: !isCurrentlyActive }
+    });
 
-    if (error) throw error;
+    if (error) {
+      let msg = getErrorMessage(error);
+      try {
+        if (error.context && typeof error.context.json === 'function') {
+          const ctx = await error.context.json();
+          if (ctx && ctx.error) msg = ctx.error;
+        }
+      } catch (_) { /* abaikan parse error */ }
+      throw new Error(msg);
+    }
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Gagal mengubah status karyawan.');
+    }
 
     await loadEmployeeList();
     await showSuccess(
       'Berhasil',
-      'Karyawan berhasil ' + (isCurrentlyActive ? 'dinonaktifkan' : 'diaktifkan') + '.'
+      'Karyawan berhasil ' + (isCurrentlyActive ? 'dinonaktifkan' : 'diaktifkan') + '.' +
+      (data && data.note ? '\n\nCatatan: ' + data.note : '')
     );
 
   } catch (err) {

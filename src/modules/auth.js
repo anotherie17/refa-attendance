@@ -47,8 +47,9 @@ export async function login(email, password) {
       showForcePasswordScreen();
       return true;
     }
+    // enterDashboard() sudah memanggil updateUserInfo() di dalamnya —
+    // jangan panggil dobel (dulu bikin 2x request signed URL foto KTP).
     enterDashboard();
-    updateUserInfo();
     return true;
 
   } catch (err) {
@@ -179,7 +180,6 @@ export async function checkExistingSession() {
       return true;
     }
     enterDashboard();
-    updateUserInfo();
     return true;
 
   } catch (err) {

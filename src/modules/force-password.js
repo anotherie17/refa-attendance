@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
 import { showError, showSuccess } from '../utils/modal.js';
 import { getErrorMessage } from '../utils/helpers.js';
-import { showPage, updateUserInfo } from '../utils/dom.js';
+import { showPage } from '../utils/dom.js';
 import { enterDashboard } from './auth.js';
 
 const DEFAULT_PASSWORD = 'refa123456';
@@ -81,8 +81,8 @@ export async function submitForcedPassword() {
     await showSuccess('Password Tersimpan', 'Password baru berhasil dibuat. Selamat bekerja!');
 
     // 3) Lanjut masuk app seperti biasa (bisa langsung check-in / check-out).
+    // enterDashboard() sudah memanggil updateUserInfo() di dalamnya.
     enterDashboard();
-    updateUserInfo();
 
   } catch (err) {
     console.error('submitForcedPassword error:', err);
