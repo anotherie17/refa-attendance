@@ -596,19 +596,18 @@ canvas { display: none; }
 .greeting-bubble {
   position: relative;
   max-width: 92%;
-  background: rgba(255,255,255,.22); /* fallback bila color-mix tak didukung */
-  background: color-mix(in srgb, #ffffff 24%, transparent);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
-  backdrop-filter: blur(10px) saturate(130%);
-  border: 1px solid rgba(255,255,255,.38);
+  /* Solid (bukan glass) — glass 24% opacity gampang ketelen di atas gradient
+     hero yang udah rame sendiri (oranye/hijau/teal). Solid = kontras terjamin
+     di semua state, otomatis ngikut dark mode lewat token --surface/--text. */
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   border-bottom-left-radius: 4px;
   padding: 9px 14px;
-  box-shadow: 0 6px 18px rgba(45,38,28,.20);
+  box-shadow: var(--shadow-lg);
   font-size: 13px;
   line-height: 1.45;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.20);
+  color: var(--text);
   opacity: 0;
   transform: translateY(6px);
   transition: opacity .3s ease, transform .35s ease;
@@ -625,7 +624,7 @@ canvas { display: none; }
 }
 .greeting-typing span {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.18);
+  background: var(--brand);
   animation: greetingTypingBounce 1s infinite ease-in-out;
 }
 .greeting-typing span:nth-child(2) { animation-delay: .15s; }
@@ -1001,4 +1000,45 @@ input.input-error, textarea.input-error, select.input-error {
 .need-approval:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* ===== FAQ / Bantuan (Profil) — native <details>, tanpa JS tambahan ===== */
+.faq-list { display: flex; flex-direction: column; gap: 6px; }
+.faq-item {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 8px; height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform .15s ease;
+  margin-top: -3px;
+}
+.faq-item[open] summary::after { transform: rotate(-135deg); margin-top: 3px; }
+.faq-item summary:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--r-xs); }
+.faq-item p {
+  margin: 0;
+  padding: 0 14px 13px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
 }

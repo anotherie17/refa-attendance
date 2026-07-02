@@ -159,9 +159,9 @@ export function showGreetingBubble() {
     bubble.classList.remove('is-typing');
     bubble.classList.add('is-done');
 
-    // melayang sebentar, lalu menghilang (fade-out)
+    // melayang sebentar, lalu menghilang (fade-out) — 5.5s biar sempat kebaca
     state.greetingHideTimer = setTimeout(() => {
       bubble.classList.remove('is-visible');
-    }, 3600);
+    }, 5500);
   }, typingMs);
 }
