@@ -289,10 +289,15 @@ di-skip atas permintaan user). Ringkas:
   nyentuh bulan terpilih (`week_start` range) — sebelumnya SELURUH riwayat off
   ke-download tiap load, makin lama makin berat. Helper baru: `addDaysStr()`.
 
+**RENCANA BERIKUTNYA (disetujui, belum dieksekusi):**
+- **Notifikasi approval via bot Telegram** ke owner — rencana lengkap, arsitektur,
+  checklist persiapan user, dan urutan eksekusi ada di **RENCANA-TELEGRAM-BOT.md**
+  (root repo). Eksekusi nunggu user siapin bot token + owner nyapa bot-nya.
+
 **Perlu tindakan user:**
-- Kode app-side sudah di-**commit ke git lokal** — masih perlu **push + deploy
-  manual** ke GitHub Pages baru kelihatan di https://refaprinting.my.id.
-  (Semua perubahan DB & edge function SUDAH live.)
+- Kode app-side sudah **live di production** (push + Pages deploy 2 Jul 2026,
+  terverifikasi: ikon lokal jalan, total download ~522KB, nol error).
+  Commit berikutnya perlu push ulang seperti biasa.
 - Verifikasi orientasi foto kamera di 1–2 HP nyata (arah mirror beda antar device).
 - Upload foto KTP 10 karyawan via admin (Edit Karyawan).
 - Aktifkan "Leaked Password Protection" di Supabase Auth dashboard.
