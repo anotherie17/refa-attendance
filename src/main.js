@@ -1,5 +1,6 @@
 // ===== ENTRY POINT: ORCHESTRATOR & EVENT REGISTRY =====
 import { state } from './state.js';
+import { SUPABASE_URL } from './config.js';
 import { supabaseClient } from './services/supabase.js';
 import { showError } from './utils/modal.js';
 import { switchSection, switchAdminTab, switchAbsensiView, switchPengajuanView, updateClock, openEmployeeForm, closeEmployeeForm } from './utils/dom.js';
@@ -24,10 +25,52 @@ import { initThemeToggle } from './utils/theme.js';
 document.addEventListener('DOMContentLoaded', async () => {
 
   // ===== Banner offline =====
+  // navigator.onLine tidak reliable (cuma ngecek radio WiFi/data nyala,
+  // bukan konektivitas beneran ke internet). Jadi kalau browser bilang
+  // offline, kita verifikasi dulu dengan fetch ringan sebelum nampilin
+  // banner. Kalau banner sudah tampil, kita coba cek ulang tiap beberapa
+  // detik supaya otomatis hilang begitu koneksi pulih.
   const offlineBanner = document.getElementById('offlineBanner');
-  const updateOnline = () => {
-    if (offlineBanner) offlineBanner.hidden = navigator.onLine;
-  };
+  let connectivityCheckTimer = null;
+
+  async function isReallyOnline() {
+    if (!navigator.onLine) return false;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 4000);
+      await fetch(SUPABASE_URL + '/auth/v1/health?_=' + Date.now(), {
+        method: 'GET',
+        cache: 'no-store',
+        signal: ctrl.signal
+      });
+      clearTimeout(timeout);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function updateOnline() {
+    const online = await isReallyOnline();
+    if (offlineBanner) offlineBanner.hidden = online;
+
+    if (!online) {
+      if (!connectivityCheckTimer) {
+        connectivityCheckTimer = setInterval(async () => {
+          const backOnline = await isReallyOnline();
+          if (backOnline) {
+            if (offlineBanner) offlineBanner.hidden = true;
+            clearInterval(connectivityCheckTimer);
+            connectivityCheckTimer = null;
+          }
+        }, 5000);
+      }
+    } else if (connectivityCheckTimer) {
+      clearInterval(connectivityCheckTimer);
+      connectivityCheckTimer = null;
+    }
+  }
+
   window.addEventListener('online', updateOnline);
   window.addEventListener('offline', updateOnline);
   updateOnline();
