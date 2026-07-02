@@ -11,6 +11,28 @@ export function getWeekStart(dateInput) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// Kelompokkan baris per employee_id dengan satu kali lewat (O(n)),
+// pengganti pola (rows).filter(...) di dalam .map() yang O(n*m).
+// Escape teks isian user sebelum masuk innerHTML (anti stored-XSS).
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function groupRowsByEmployee(rows) {
+  const map = new Map();
+  (rows || []).forEach(r => {
+    const arr = map.get(r.employee_id);
+    if (arr) arr.push(r);
+    else map.set(r.employee_id, [r]);
+  });
+  return map;
+}
+
 export function formatDateLabel(value) {
   if (!value) return '-';
   const dateValue = String(value).slice(0, 10);

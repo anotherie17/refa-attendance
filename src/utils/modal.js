@@ -17,6 +17,13 @@ export function showModal(type, title, message, options) {
     confirm: 'circle-question-mark'
   };
 
+  // Kalau ada modal lain yang masih terbuka, selesaikan dulu promise-nya
+  // supaya tidak ada promise yang menggantung selamanya.
+  if (state.modalResolve) {
+    state.modalResolve(false);
+    state.modalResolve = null;
+  }
+
   icon.className = 'modal-icon ' + type;
   icon.innerHTML = '<i data-lucide="' + (icons[type] || icons.confirm) + '"></i>';
   if (window.lucide) window.lucide.createIcons();
@@ -77,6 +84,33 @@ export function showToast(message, type) {
     el.classList.remove('show');
     setTimeout(() => el.remove(), 250);
   }, 2400);
+}
+
+// ===== INLINE FIELD ERROR — pesan merah di bawah field =====
+export function showFieldError(inputId, message) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  // Taruh pesan setelah wrapper .password-field kalau ada, kalau tidak setelah input.
+  const anchor = input.closest('.password-field') || input;
+
+  input.classList.add('input-error');
+  let err = anchor.parentElement.querySelector('.field-error[data-for="' + inputId + '"]');
+  if (!err) {
+    err = document.createElement('div');
+    err.className = 'field-error';
+    err.setAttribute('data-for', inputId);
+    anchor.insertAdjacentElement('afterend', err);
+  }
+  err.textContent = message;
+
+  // Hilangkan error begitu user mulai mengetik/memilih.
+  const clear = () => {
+    input.classList.remove('input-error');
+    err.remove();
+  };
+  input.addEventListener('input', clear, { once: true });
+  input.addEventListener('change', clear, { once: true });
+  input.focus();
 }
 
 export function showConfirm(title, message, okText) {

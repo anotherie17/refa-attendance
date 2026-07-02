@@ -45,16 +45,6 @@ function resetPhotoPreview() {
   }
 }
 
-function computeMasukStatus(shift, now) {
-  if (!shift || !shift.jam_mulai) return 'tepat_waktu';
-  const [h, m] = String(shift.jam_mulai).split(':').map(Number);
-  const shiftStart = new Date(now);
-  shiftStart.setHours(h || 0, m || 0, 0, 0);
-  const lateMs = now.getTime() - shiftStart.getTime();
-  if (lateMs <= 0) return 'tepat_waktu';
-  return 'telat_' + Math.round(lateMs / 60000);
-}
-
 async function uploadSelfie(prefix) {
   if (!state.photoData) throw new Error('Foto belum tersedia.');
   const res = await fetch(state.photoData);
@@ -175,7 +165,11 @@ export function capturePhoto() {
 
   if (preview) {
     preview.classList.remove('empty');
-    preview.innerHTML = '<img src="' + state.photoData + '" alt="Selfie" style="width:100%;border-radius:10px;display:block;" />';
+    preview.innerHTML = '<img src="' + state.photoData + '" alt="Selfie" style="width:100%;border-radius:10px;display:block;" />' +
+      '<button type="button" id="fotoUlangBtn" class="secondary-btn" style="width:100%;margin-top:8px;"><i data-lucide="rotate-ccw"></i> Foto Ulang</button>';
+    const ulangBtn = preview.querySelector('#fotoUlangBtn');
+    if (ulangBtn) ulangBtn.addEventListener('click', startCamera);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   stopCamera();
@@ -213,30 +207,28 @@ export async function absenMasuk() {
 
   try {
     const fotoUrl = await uploadSelfie('masuk');
-    const now = new Date();
-    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    const shift = state.shifts.find(s => s.id === state.selectedShiftId) || null;
-    const status = computeMasukStatus(shift, now);
 
-    const { error } = await supabaseClient.from('attendance').insert({
-      employee_id: state.currentEmployee.id,
-      tanggal: today,
-      jam_masuk: now.toISOString(),
-      lat_masuk: state.currentLat,
-      long_masuk: state.currentLng,
-      foto_masuk_url: fotoUrl,
-      shift_id: state.selectedShiftId,
-      status
+    // Validasi lokasi, tanggal WITA, status telat, dan guard dobel absen
+    // semuanya dihitung DI SERVER oleh RPC (SECURITY DEFINER).
+    const { data, error } = await supabaseClient.rpc('checkin_attendance', {
+      p_lat: state.currentLat,
+      p_long: state.currentLng,
+      p_shift_id: state.selectedShiftId,
+      p_foto_url: fotoUrl
     });
     if (error) throw error;
+    if (data && data.success === false) {
+      await showError('Gagal Absen Masuk', data.message || 'Absen masuk ditolak server.');
+      return;
+    }
 
     state.photoData = null;
     resetPhotoPreview();
     await loadTodayStatus();
-    await showSuccess('Check In Berhasil', 'Absensi masuk tercatat pukul ' + formatWITATime(now, true) + ' WITA.');
+    showToast('Absen masuk tercatat pukul ' + formatWITATime(data?.jam_masuk || new Date(), true) + ' WITA');
   } catch (err) {
     console.error('absenMasuk error:', err);
-    await showError('Gagal Check In', getErrorMessage(err, 'attendance'));
+    await showError('Gagal Absen Masuk', getErrorMessage(err, 'attendance'));
   } finally {
     state.isSubmitting = false;
     if (btn) btn.innerHTML = original;
@@ -246,7 +238,7 @@ export async function absenMasuk() {
 
 export async function absenKeluar() {
   if (state.isSubmitting) return;
-  if (!state.todayAttendance?.id) { await showError('Belum Check In', 'Anda belum melakukan check in hari ini.'); return; }
+  if (!state.todayAttendance?.id) { await showError('Belum Absen Masuk', 'Anda belum melakukan absen masuk hari ini.'); return; }
   if (!state.locationOk) { await showError('Lokasi Belum Valid', 'Cek lokasi terlebih dahulu.'); return; }
   if (!state.photoData) { await showError('Foto Belum Ada', 'Ambil foto selfie terlebih dahulu.'); return; }
 
@@ -257,22 +249,25 @@ export async function absenKeluar() {
 
   try {
     const fotoUrl = await uploadSelfie('keluar');
-    const now = new Date();
-    const { error } = await supabaseClient.from('attendance').update({
-      jam_keluar: now.toISOString(),
-      lat_keluar: state.currentLat,
-      long_keluar: state.currentLng,
-      foto_keluar_url: fotoUrl
-    }).eq('id', state.todayAttendance.id);
+
+    const { data, error } = await supabaseClient.rpc('checkout_attendance', {
+      p_lat: state.currentLat,
+      p_long: state.currentLng,
+      p_foto_url: fotoUrl
+    });
     if (error) throw error;
+    if (data && data.success === false) {
+      await showError('Gagal Absen Keluar', data.message || 'Absen keluar ditolak server.');
+      return;
+    }
 
     state.photoData = null;
     resetPhotoPreview();
     await loadTodayStatus();
-    await showSuccess('Check Out Berhasil', 'Absensi pulang tercatat pukul ' + formatWITATime(now, true) + ' WITA.');
+    showToast('Absen keluar tercatat pukul ' + formatWITATime(data?.jam_keluar || new Date(), true) + ' WITA');
   } catch (err) {
     console.error('absenKeluar error:', err);
-    await showError('Gagal Check Out', getErrorMessage(err, 'attendance'));
+    await showError('Gagal Absen Keluar', getErrorMessage(err, 'attendance'));
   } finally {
     state.isSubmitting = false;
     if (btn) btn.innerHTML = original;

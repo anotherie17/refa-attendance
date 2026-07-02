@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
-import { showError } from '../utils/modal.js';
+import { showError, showConfirm, showFieldError } from '../utils/modal.js';
 import { getErrorMessage, filterTrackedEmployees } from '../utils/helpers.js';
 import { showPage, switchSection, switchAdminTab, updateUserInfo } from '../utils/dom.js';
 import { needsForcedPasswordChange, showForcePasswordScreen } from './force-password.js';
@@ -9,7 +9,8 @@ export async function login(email, password) {
   if (state.isSubmitting) return false;
 
   if (!email || !password) {
-    await showError('Data Belum Lengkap', 'Email dan password harus diisi.');
+    if (!email) showFieldError('email', 'Email harus diisi.');
+    if (!password) showFieldError('password', 'Password harus diisi.');
     return false;
   }
 
@@ -122,6 +123,22 @@ export async function enterAdminDashboard() {
   switchAdminTab('ringkasan');
 }
 
+// Dipanggil saat sesi Supabase habis/di-revoke (bukan logout manual).
+export function handleSessionExpired() {
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+  state.currentUser = null;
+  state.currentEmployee = null;
+  state.locationOk = false;
+  state.photoData = null;
+  state.selectedShiftId = null;
+  state.todayAttendance = null;
+  showPage('loginPage');
+  showError('Sesi Berakhir', 'Sesi berakhir, silakan login lagi.');
+}
+
 export async function checkExistingSession() {
   if (!supabaseClient) {
     showPage('loginPage');
@@ -173,6 +190,14 @@ export async function checkExistingSession() {
 }
 
 export async function logout() {
+  const ok = await showConfirm('Keluar dari Aplikasi?', 'Kamu perlu login lagi untuk masuk kembali.', 'Ya, Keluar');
+  if (!ok) return;
+
+  // Kosongkan state DULU supaya listener onAuthStateChange tahu ini logout manual,
+  // bukan sesi kedaluwarsa.
+  state.currentUser = null;
+  state.currentEmployee = null;
+
   if (supabaseClient) {
     await supabaseClient.auth.signOut();
   }
@@ -183,8 +208,6 @@ export async function logout() {
     state.stream = null;
   }
 
-  state.currentUser = null;
-  state.currentEmployee = null;
   state.locationOk = false;
   state.photoData = null;
   state.selectedShiftId = null;

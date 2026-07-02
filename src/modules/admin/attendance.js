@@ -1,7 +1,8 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess } from '../../utils/modal.js';
-import { getErrorMessage, getDaysInMonth, computeMonthlyAttendance, skeletonList, filterTrackedEmployees, formatWITATime } from '../../utils/helpers.js';
+import { getErrorMessage, getDaysInMonth, computeMonthlyAttendance, skeletonList, filterTrackedEmployees, formatWITATime, groupRowsByEmployee , escapeHtml} from '../../utils/helpers.js';
+import { ensureLib } from '../../utils/lazy-libs.js';
 
 // ---- Fase 9: util unduh foto -> thumbnail dataURL (dipakai export PDF per karyawan) ----
 async function loadThumbnailDataUrl(url, maxSize) {
@@ -125,13 +126,13 @@ export async function loadAdminAbsensiHariIni() {
         const jamMasuk = att.jam_masuk ? formatWITATime(att.jam_masuk, true) : '-';
         const jamKeluar = att.jam_keluar ? formatWITATime(att.jam_keluar, true) : null;
         const statusBadge = jamKeluar
-          ? '<span class="status-ok">Sudah Check Out</span>'
-          : '<span class="status-ok">Sudah Check In</span>';
+          ? '<span class="status-ok">Sudah Absen Keluar</span>'
+          : '<span class="status-ok">Sudah Absen Masuk</span>';
         return `
           <div class="employee-card">
-            <div class="employee-name">${emp.nama}</div>
+            <div class="employee-name">${escapeHtml(emp.nama)}</div>
             <div class="employee-meta">
-              ${emp.jabatan || '-'} · ${att.shifts?.nama || 'Shift tidak diketahui'}<br>
+              ${escapeHtml(emp.jabatan || '-')} · ${escapeHtml(att.shifts?.nama || 'Shift tidak diketahui')}<br>
               Masuk: ${jamMasuk}${jamKeluar ? ' · Keluar: ' + jamKeluar : ''}
             </div>
             ${statusBadge}
@@ -160,12 +161,12 @@ export async function loadAdminAbsensiHariIni() {
       }
 
       // 4) Tidak ada apa-apa
-      if (!badge) badge = '<span class="status-neutral">Belum Check In</span>';
+      if (!badge) badge = '<span class="status-neutral">Belum Absen Masuk</span>';
 
       return `
         <div class="employee-card">
-          <div class="employee-name">${emp.nama}</div>
-          <div class="employee-meta">${emp.jabatan || '-'}</div>
+          <div class="employee-name">${escapeHtml(emp.nama)}</div>
+          <div class="employee-meta">${escapeHtml(emp.jabatan || '-')}</div>
           ${badge}
         </div>
       `;
@@ -255,13 +256,17 @@ export async function getRekapBulananData(monthValue) {
     .eq('status', 'approved');
   if (dayOffError) throw dayOffError;
 
+  const attByEmp = groupRowsByEmployee(attendanceRows);
+  const leaveByEmp = groupRowsByEmployee(leaveRows);
+  const dayOffByEmp = groupRowsByEmployee(dayOffRows);
+
   const result = (employees || []).map(emp => {
     const stat = computeMonthlyAttendance({
       startDateStr, endDateStr, todayStr,
       joinDateStr: emp.tanggal_masuk || (emp.created_at ? String(emp.created_at).slice(0, 10) : null),
-      attRows: (attendanceRows || []).filter(a => a.employee_id === emp.id),
-      leaveRows: (leaveRows || []).filter(l => l.employee_id === emp.id),
-      dayOffRows: (dayOffRows || []).filter(o => o.employee_id === emp.id)
+      attRows: attByEmp.get(emp.id) || [],
+      leaveRows: leaveByEmp.get(emp.id) || [],
+      dayOffRows: dayOffByEmp.get(emp.id) || []
     });
     return {
       id: emp.id,
@@ -299,7 +304,7 @@ export async function loadRekapBulanan() {
 
     const tableRows = rekap.map(r => `
       <tr>
-        <td class="t-name">${r.nama}</td>
+        <td class="t-name">${escapeHtml(r.nama)}</td>
         <td class="num">${r.hadir}</td>
         <td class="num">${r.telat}</td>
         <td class="num">${r.cuti}</td>
@@ -339,6 +344,7 @@ export async function loadRekapBulanan() {
 
 export async function exportRekapToExcel(monthValue) {
   try {
+    await ensureLib('xlsx');
     const [tahun, bulan] = monthValue.split('-');
     const tahunNum = parseInt(tahun, 10);
     const bulanNum = parseInt(bulan, 10);
@@ -418,10 +424,14 @@ export async function exportRekapToExcel(monthValue) {
     const jamCetak = String(nowWITA.getUTCHours()).padStart(2,'0') + ':' + String(nowWITA.getUTCMinutes()).padStart(2,'0');
     const tglCetak = today.toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'});
 
+    const attByEmp = groupRowsByEmployee(allAtt);
+    const leaveByEmp = groupRowsByEmployee(allLeave);
+    const dayOffByEmp = groupRowsByEmployee(allDayOff);
+
     const rekapList = employees.map(emp => {
-      const empAtt = allAtt.filter(a => a.employee_id === emp.id).sort((a,b) => a.tanggal.localeCompare(b.tanggal));
-      const empLeave = allLeave.filter(l => l.employee_id === emp.id).sort((a,b) => a.start_date.localeCompare(b.start_date));
-      const empDayOff = allDayOff.filter(o => o.employee_id === emp.id);
+      const empAtt = (attByEmp.get(emp.id) || []).slice().sort((a,b) => a.tanggal.localeCompare(b.tanggal));
+      const empLeave = (leaveByEmp.get(emp.id) || []).slice().sort((a,b) => a.start_date.localeCompare(b.start_date));
+      const empDayOff = dayOffByEmp.get(emp.id) || [];
       const stat = computeMonthlyAttendance({
         startDateStr, endDateStr, todayStr,
         joinDateStr: emp.tanggal_masuk || (emp.created_at ? String(emp.created_at).slice(0, 10) : null),
@@ -684,11 +694,8 @@ export async function exportRekapToExcel(monthValue) {
 
 // ---- Fase 9: Laporan PDF per karyawan + foto selfie tertanam ----
 export async function exportKaryawanToPDF(employeeId, monthValue) {
-  if (typeof jspdf === 'undefined') {
-    await showError('Gagal Export', 'Komponen PDF belum siap. Coba refresh halaman.');
-    return;
-  }
   try {
+    await ensureLib('jspdf');
     const [tahun, bulan] = monthValue.split('-');
     const tahunNum = parseInt(tahun, 10);
     const bulanNum = parseInt(bulan, 10);

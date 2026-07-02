@@ -1,8 +1,9 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess } from '../../utils/modal.js';
-import { getErrorMessage, getDaysInMonth, formatDateLabel, computeMonthlyAttendance, filterTrackedEmployees } from '../../utils/helpers.js';
+import { getErrorMessage, getDaysInMonth, formatDateLabel, computeMonthlyAttendance, filterTrackedEmployees, groupRowsByEmployee , escapeHtml} from '../../utils/helpers.js';
 import { renderCalendarGrid } from '../../utils/dom.js';
+import { ensureLib } from '../../utils/lazy-libs.js';
 
 let trenChartInstance = null;
 let trenMode = 'semua';
@@ -70,13 +71,17 @@ export async function computeRingkasanBulan(monthValue) {
   let totalHadir = 0, totalTelat = 0, totalCuti = 0, totalAlpa = 0, totalWajib = 0;
   const perEmployee = {};
 
+  const attByEmp = groupRowsByEmployee(attendanceRows);
+  const leaveByEmp = groupRowsByEmployee(leaveRows);
+  const dayOffByEmp = groupRowsByEmployee(dayOffRows);
+
   (employees || []).forEach(emp => {
     const stat = computeMonthlyAttendance({
       startDateStr, endDateStr, todayStr,
       joinDateStr: emp.tanggal_masuk || (emp.created_at ? String(emp.created_at).slice(0, 10) : null),
-      attRows: (attendanceRows || []).filter(a => a.employee_id === emp.id),
-      leaveRows: (leaveRows || []).filter(l => l.employee_id === emp.id),
-      dayOffRows: (dayOffRows || []).filter(o => o.employee_id === emp.id)
+      attRows: attByEmp.get(emp.id) || [],
+      leaveRows: leaveByEmp.get(emp.id) || [],
+      dayOffRows: dayOffByEmp.get(emp.id) || []
     });
     totalHadir += stat.hadir;
     totalTelat += stat.telat;
@@ -147,7 +152,7 @@ export async function loadBirthdayReminder() {
         <div class="ranking-item">
           <div class="ranking-rank"><i data-lucide="cake"></i></div>
           <div class="ranking-info">
-            <div class="ranking-name">${emp.nama}</div>
+            <div class="ranking-name">${escapeHtml(emp.nama)}</div>
             <div class="ranking-meta">Ulang tahun ${formatDateLabel(emp.tanggal_lahir)} · ${label}</div>
           </div>
         </div>
@@ -200,7 +205,7 @@ function renderRanking(containerId, perEmployee, field, unitLabel) {
     <div class="ranking-item">
       <div class="ranking-rank">${i + 1}</div>
       <div class="ranking-info">
-        <div class="ranking-name">${e.nama}</div>
+        <div class="ranking-name">${escapeHtml(e.nama)}</div>
         <div class="ranking-meta">${e.hadir} hadir bulan ini</div>
       </div>
       <div class="ranking-count">${e[field]}<span style="font-size:10px;font-weight:600;color:var(--muted);"> ${unitLabel}</span></div>
@@ -236,7 +241,7 @@ async function populateTrenEmployeeFilter() {
       .order('nama', { ascending: true });
     if (error) throw error;
 
-    select.innerHTML = filterTrackedEmployees(data).map(e => `<option value="${e.id}">${e.nama}</option>`).join('');
+    select.innerHTML = filterTrackedEmployees(data).map(e => `<option value="${e.id}">${escapeHtml(e.nama)}</option>`).join('');
   } catch (err) {
     console.error('populateTrenEmployeeFilter error:', err);
   }
@@ -244,7 +249,8 @@ async function populateTrenEmployeeFilter() {
 
 export async function loadTrenKeterlambatan() {
   const canvas = document.getElementById('trenChart');
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (!canvas) return;
+  try { await ensureLib('chart'); } catch (e) { console.error(e); return; }
 
   try {
     const now = new Date();
@@ -327,7 +333,7 @@ export async function populateKalenderAdminFilter() {
     if (error) throw error;
 
     select.innerHTML = '<option value="">-- Pilih Karyawan --</option>' +
-      filterTrackedEmployees(data).map(e => `<option value="${e.id}">${e.nama}</option>`).join('');
+      filterTrackedEmployees(data).map(e => `<option value="${e.id}">${escapeHtml(e.nama)}</option>`).join('');
   } catch (err) {
     console.error('populateKalenderAdminFilter error:', err);
   }
@@ -380,6 +386,15 @@ export async function loadKalenderAdmin() {
       .gte('off_date', _moStart)
       .lte('off_date', _moEnd);
     (offData || []).forEach(o => { dayDataMap[o.off_date] = 'libur'; });
+    // Izin khusus yang disetujui juga bukan "tidak hadir".
+    const { data: izinData } = await supabaseClient
+      .from('special_permission_requests')
+      .select('start_date')
+      .eq('employee_id', employeeId)
+      .eq('status', 'approved')
+      .gte('start_date', _moStart)
+      .lte('start_date', _moEnd);
+    (izinData || []).forEach(z => { dayDataMap[z.start_date] = 'cuti'; });
     (attData || []).forEach(a => {
       dayDataMap[a.tanggal] = (a.status && a.status.startsWith('telat_')) ? 'telat' : 'hadir';
     });
@@ -402,8 +417,10 @@ export async function exportRingkasanToPDF() {
     return;
   }
 
-  if (typeof jspdf === 'undefined') {
-    await showError('Gagal Export', 'Komponen PDF belum siap. Coba refresh halaman.');
+  try {
+    await ensureLib('jspdf');
+  } catch (e) {
+    await showError('Gagal Export', 'Komponen PDF gagal dimuat. Periksa koneksi lalu coba lagi.');
     return;
   }
 

@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
-import { showError, showSuccess } from '../utils/modal.js';
-import { getErrorMessage, formatDateLabel } from '../utils/helpers.js';
+import { showError, showSuccess, showFieldError } from '../utils/modal.js';
+import { getErrorMessage, formatDateLabel , escapeHtml} from '../utils/helpers.js';
 
 const TYPE_LABEL = { sakit: 'Sakit', keluarga: 'Urusan Keluarga', lainnya: 'Lainnya' };
 
@@ -14,7 +14,7 @@ export async function submitSpecialPermission() {
   const submitBtn = document.getElementById('submitIzinBtn');
 
   if (!tanggal) {
-    await showError('Data Belum Lengkap', 'Tanggal harus diisi.');
+    showFieldError('izinStartDate', 'Tanggal harus diisi.');
     return;
   }
 
@@ -77,16 +77,16 @@ export async function loadSpecialPermissions() {
     }
 
     listEl.innerHTML = data.map(item => {
-      let statusBadge = '<span class="status-warning">Pending</span>';
-      if (item.status === 'approved') statusBadge = '<span class="status-ok">Approved</span>';
-      if (item.status === 'rejected') statusBadge = '<span class="status-error">Rejected</span>';
+      let statusBadge = '<span class="status-warning">Menunggu</span>';
+      if (item.status === 'approved') statusBadge = '<span class="status-ok">Disetujui</span>';
+      if (item.status === 'rejected') statusBadge = '<span class="status-error">Ditolak</span>';
 
       const tglLabel = formatDateLabel(item.start_date);
 
       return `
         <div class="attendance-item">
           <div class="attendance-date">${TYPE_LABEL[item.permission_type] || 'Izin'} \u2022 ${tglLabel}</div>
-          <div class="attendance-time">${item.reason || '-'}</div>
+          <div class="attendance-time">${escapeHtml(item.reason || '-')}</div>
           ${statusBadge}
         </div>
       `;

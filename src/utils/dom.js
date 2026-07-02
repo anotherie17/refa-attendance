@@ -86,7 +86,8 @@ export function switchPengajuanView(view) {
 // ===== USER INFO =====
 export function updateUserInfo() {
   if (!state.currentEmployee) return;
-  const _r = state.currentEmployee.role;
+  const _r = state.currentEmployee.role;
+
   const roleText = _r === 'superadmin' ? 'Super Admin' : (_r === 'admin' ? 'Admin' : 'Karyawan');
 
   const userName = document.getElementById('userName');
@@ -169,28 +170,39 @@ export function updateHeroState() {
   if (isComplete) {
     if (heroBadge) heroBadge.textContent = 'Selesai';
     if (heroTitle) heroTitle.textContent = 'Absensi hari ini selesai';
-    if (heroSubtitle) heroSubtitle.textContent = nama + ' tercatat check in ' + formatAttendanceTime(state.todayAttendance.jam_masuk) + ' dan check out ' + formatAttendanceTime(state.todayAttendance.jam_keluar) + '.';
+    if (heroSubtitle) heroSubtitle.textContent = nama + ' tercatat absen masuk ' + formatAttendanceTime(state.todayAttendance.jam_masuk) + ' dan absen keluar ' + formatAttendanceTime(state.todayAttendance.jam_keluar) + '.';
     if (heroStatus) heroStatus.textContent = 'Lengkap';
     if (heroNextAction) heroNextAction.textContent = 'Tidak ada tindakan absensi lagi untuk hari ini.';
   } else if (hasMasuk) {
-    if (heroBadge) heroBadge.textContent = isReadyCheckOut ? 'Siap Check Out' : 'Check In Tercatat';
-    if (heroTitle) heroTitle.textContent = nama + ', lanjutkan check out';
-    if (heroSubtitle) heroSubtitle.textContent = 'Check in tercatat pukul ' + formatAttendanceTime(state.todayAttendance.jam_masuk) + '.';
+    if (heroBadge) heroBadge.textContent = isReadyCheckOut ? 'Siap Absen Keluar' : 'Absen Masuk Tercatat';
+    if (heroTitle) heroTitle.textContent = nama + ', lanjutkan absen keluar';
+    if (heroSubtitle) heroSubtitle.textContent = 'Absen masuk tercatat pukul ' + formatAttendanceTime(state.todayAttendance.jam_masuk) + '.';
     if (heroStatus) heroStatus.textContent = getAttendanceStatusLabel(state.todayAttendance);
     if (heroNextAction) heroNextAction.textContent = isReadyCheckOut
-      ? 'Berikutnya: cek lokasi, ambil selfie, lalu tekan Check Out.'
-      : 'Lengkapi lokasi dan foto untuk lanjut check out.';
+      ? 'Berikutnya: cek lokasi, ambil selfie, lalu tekan Absen Keluar.'
+      : 'Lengkapi lokasi dan foto untuk lanjut absen keluar.';
   } else {
-    if (heroBadge) heroBadge.textContent = isReadyCheckIn ? 'Siap Check In' : 'Belum Absen';
-    if (heroTitle) heroTitle.textContent = nama + ', ' + (isReadyCheckIn ? 'siap check in' : 'belum absen');
+    if (heroBadge) heroBadge.textContent = isReadyCheckIn ? 'Siap Absen Masuk' : 'Belum Absen';
+    if (heroTitle) heroTitle.textContent = nama + ', ' + (isReadyCheckIn ? 'siap absen masuk' : 'belum absen');
     if (heroSubtitle) heroSubtitle.textContent = isReadyCheckIn
-      ? 'Semua syarat absensi sudah lengkap. Silakan lanjutkan check in.'
+      ? 'Semua syarat absensi sudah lengkap. Silakan lanjutkan absen masuk.'
       : 'Mulai dengan validasi lokasi dan selfie untuk absensi hari ini.';
     if (heroStatus) heroStatus.textContent = isReadyCheckIn ? 'Siap' : 'Belum absen';
     if (heroNextAction) heroNextAction.textContent = isReadyCheckIn
-      ? 'Berikutnya: pilih shift, lalu tekan Check In.'
-      : 'Berikutnya: cek lokasi, ambil selfie, pilih shift, lalu tekan Check In.';
+      ? 'Berikutnya: pilih shift, lalu tekan Absen Masuk.'
+      : 'Berikutnya: cek lokasi, ambil selfie, pilih shift, lalu tekan Absen Masuk.';
   }
+
+  // Centang "Beres" di kartu langkah 1-2-3
+  const stepDone = [
+    ['stepCardLokasi', !!state.locationOk],
+    ['stepCardFoto', !!state.photoData],
+    ['shiftCard', !!state.selectedShiftId]
+  ];
+  stepDone.forEach(([id, done]) => {
+    const card = document.getElementById(id);
+    if (card) card.classList.toggle('done', done);
+  });
 }
 
 export function updateClock() {
@@ -252,18 +264,17 @@ export function openEmployeeForm(employeeId) {
 
   const title = document.getElementById('employeeFormTitle');
   const subtitle = document.getElementById('employeeFormSubtitle');
-  const authIdGroup = document.getElementById('empFormAuthIdGroup');
-  const authIdSection = document.getElementById('employeeAuthIdSection');
 
   document.getElementById('empFormNama').value = '';
   document.getElementById('empFormEmail').value = '';
   document.getElementById('empFormJabatan').value = '';
-  document.getElementById('empFormRole').value = 'karyawan';
-  const _superOpt = document.querySelector('#empFormRole option[value="superadmin"]');
+  document.getElementById('empFormRole').value = 'karyawan';
+
+  const _superOpt = document.querySelector('#empFormRole option[value="superadmin"]');
+
   if (_superOpt) _superOpt.disabled = state.currentEmployee?.role !== 'superadmin';
   document.getElementById('empFormLeaveBalance').value = '0';
   document.getElementById('empFormLeaveEntitlement').value = '0';
-  document.getElementById('empFormAuthId').value = '';
   const _phone = document.getElementById('empFormPhone');
   if (_phone) _phone.value = '';
   const _ktpFile = document.getElementById('empFormKtpFile');
@@ -278,15 +289,11 @@ export function openEmployeeForm(employeeId) {
   if (state.editingEmployeeId) {
     title.textContent = 'Edit Karyawan';
     subtitle.textContent = 'Perbarui data karyawan. Email tidak bisa diubah karena terhubung dengan akun login.';
-    if (authIdGroup) authIdGroup.style.display = 'block';
-    if (authIdSection) authIdSection.style.display = 'none';
     if (passwordGroup) passwordGroup.style.display = 'none';
     document.getElementById('empFormEmail').disabled = true;
   } else {
     title.textContent = 'Tambah Karyawan';
     subtitle.textContent = 'Isi data karyawan baru. Akun login otomatis dibuat dari email & password di bawah — karyawan langsung bisa login.';
-    if (authIdGroup) authIdGroup.style.display = 'none';
-    if (authIdSection) authIdSection.style.display = 'none';
     if (passwordGroup) passwordGroup.style.display = 'block';
     document.getElementById('empFormEmail').disabled = false;
   }
@@ -323,7 +330,8 @@ export function renderCalendarGrid(containerId, year, month, dayDataMap) {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    const status = dayDataMap[dateStr] || '';
+    // Hari lampau tanpa catatan (absen/cuti/izin/off) = tidak hadir (merah).
+    const status = dayDataMap[dateStr] || (dateStr < todayStr ? 'absen' : '');
     const isToday = dateStr === todayStr;
     html += '<div class="cal-day ' + status + (isToday ? ' today' : '') + '">' + d + '</div>';
   }
@@ -333,8 +341,9 @@ export function renderCalendarGrid(containerId, year, month, dayDataMap) {
     <div class="cal-legend">
       <span><span class="dot" style="background:var(--success);"></span> Hadir</span>
       <span><span class="dot" style="background:var(--warning);"></span> Telat</span>
-      <span><span class="dot" style="background:var(--orange-700);"></span> Cuti</span>
-      <span><span class="dot" style="background:#94a3b8;"></span> Off</span>
+      <span><span class="dot" style="background:var(--orange-700);"></span> Cuti/Izin</span>
+      <span><span class="dot" style="background:var(--libur-fg);"></span> Off</span>
+      <span><span class="dot" style="background:var(--error);"></span> Tidak Hadir</span>
     </div>
   `;
 

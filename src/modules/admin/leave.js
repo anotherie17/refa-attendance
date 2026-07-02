@@ -2,8 +2,8 @@ import { supabaseClient } from '../../services/supabase.js';
 
 import { state } from '../../state.js';
 import { showError, showSuccess, showConfirm } from '../../utils/modal.js';
-import { getErrorMessage, formatDateLabel } from '../../utils/helpers.js';
-import { enterAdminDashboard } from '../auth.js';
+import { getErrorMessage, formatDateLabel , escapeHtml} from '../../utils/helpers.js';
+import { refreshPendingApprovalCard } from '../auth.js';
 
 // ===== TAB APPROVAL: DAFTAR CUTI PENDING =====
 export async function loadAdminLeaveRequests() {
@@ -29,15 +29,15 @@ export async function loadAdminLeaveRequests() {
     const canAct = state.currentEmployee?.role === 'superadmin';
     container.innerHTML = data.map(item => `
       <div class="admin-leave-card">
-        <div class="admin-leave-name">${item.employees?.nama || 'Tidak diketahui'}</div>
-        <div class="admin-leave-reason">${item.reason || '-'}</div>
-        <div class="admin-leave-date">Tanggal: ${item.start_date}</div>
-        <span class="status-warning">Pending</span>
+        <div class="admin-leave-name">${escapeHtml(item.employees?.nama || 'Tidak diketahui')}</div>
+        <div class="admin-leave-reason">${escapeHtml(item.reason || '-')}</div>
+        <div class="admin-leave-date">Tanggal: ${formatDateLabel(item.start_date)}</div>
+        <span class="status-warning">Menunggu</span>
 
         ${canAct ? `
         <div class="admin-leave-actions">
-          <button class="btn-approve" data-leave-id="${item.id}">Approve</button>
-          <button class="btn-reject" data-leave-id="${item.id}">Reject</button>
+          <button class="btn-approve" data-leave-id="${item.id}">Setujui</button>
+          <button class="btn-reject" data-leave-id="${item.id}">Tolak</button>
         </div>` : `
         <div class="admin-leave-note" style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic;">Hanya superadmin yang dapat menyetujui / menolak.</div>`}
       </div>
@@ -69,16 +69,17 @@ export async function approveLeave(id) {
     if (error) throw error;
 
     if (data && data.success === false) {
-      await showError('Gagal Approve', data.message || 'Pengajuan tidak dapat disetujui.');
+      await showError('Gagal Menyetujui', data.message || 'Pengajuan tidak dapat disetujui.');
       return;
     }
 
     await showSuccess('Cuti Disetujui', 'Pengajuan cuti berhasil disetujui dan saldo karyawan sudah diperbarui.');
-    await enterAdminDashboard();
+    await loadAdminLeaveRequests();
+    await refreshPendingApprovalCard();
 
   } catch (err) {
     console.error(err);
-    await showError('Gagal Approve', getErrorMessage(err));
+    await showError('Gagal Menyetujui', getErrorMessage(err));
   }
 }
 
@@ -107,16 +108,18 @@ export async function rejectLeave(id) {
 
     if (!data || data.length === 0) {
       await showError('Tidak Bisa Diproses', 'Pengajuan ini sudah diproses sebelumnya.');
-      await enterAdminDashboard();
+      await loadAdminLeaveRequests();
+    await refreshPendingApprovalCard();
       return;
     }
 
     await showSuccess('Cuti Ditolak', 'Pengajuan cuti berhasil ditolak.');
-    await enterAdminDashboard();
+    await loadAdminLeaveRequests();
+    await refreshPendingApprovalCard();
 
   } catch (err) {
     console.error(err);
-    await showError('Gagal Reject', getErrorMessage(err));
+    await showError('Gagal Menolak', getErrorMessage(err));
   }
 }
 
@@ -135,7 +138,7 @@ export async function populateRiwayatCutiFilter() {
     if (error) throw error;
 
     select.innerHTML = '<option value="">Semua Karyawan</option>' +
-      (data || []).map(emp => `<option value="${emp.id}">${emp.nama}</option>`).join('');
+      (data || []).map(emp => `<option value="${emp.id}">${escapeHtml(emp.nama)}</option>`).join('');
 
     // Pertahankan pilihan filter sebelumnya kalau masih ada
     select.value = currentValue || '';
@@ -218,14 +221,14 @@ export async function loadAdminLeaveHistory() {
 
     container.innerHTML = rows.map(r => {
       const statusPill = r.status === 'approved'
-        ? '<span class="status-ok">Approved</span>'
-        : '<span class="status-error">Rejected</span>';
+        ? '<span class="status-ok">Disetujui</span>'
+        : '<span class="status-error">Ditolak</span>';
       const meta = TYPE_META[r.type];
       return `
         <div class="admin-leave-card">
           <span class="req-type-tag ${meta.cls}">${meta.label}</span>
-          <div class="admin-leave-name">${r.nama}</div>
-          <div class="admin-leave-reason">${r.detail}</div>
+          <div class="admin-leave-name">${escapeHtml(r.nama)}</div>
+          <div class="admin-leave-reason">${escapeHtml(r.detail)}</div>
           <div class="admin-leave-date">Tanggal: ${r.dateText}</div>
           ${statusPill}
         </div>`;

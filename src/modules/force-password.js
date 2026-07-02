@@ -19,6 +19,22 @@ export function showForcePasswordScreen() {
   showPage('forcePasswordPage');
 }
 
+// Checklist hidup: update centang saat user mengetik.
+export function initPasswordChecklist() {
+  const pw = document.getElementById('forceNewPassword');
+  const cf = document.getElementById('forceConfirmPassword');
+  const liLen = document.getElementById('pwCheckLength');
+  const liMatch = document.getElementById('pwCheckMatch');
+  if (!pw || !cf || !liLen || !liMatch) return;
+
+  const update = () => {
+    liLen.classList.toggle('ok', pw.value.length >= 6);
+    liMatch.classList.toggle('ok', cf.value.length > 0 && pw.value === cf.value);
+  };
+  pw.addEventListener('input', update);
+  cf.addEventListener('input', update);
+}
+
 export async function submitForcedPassword() {
   if (state.isSubmitting) return;
 

@@ -24,8 +24,12 @@ export function getStoredTheme() {
 
 export function setTheme(choice) {
   // choice: 'light' | 'dark' | 'auto'
+  // 'auto' di-RESOLVE jadi dark/light mengikuti sistem, supaya CSS cukup punya
+  // satu blok token gelap (html[data-theme="dark"]) tanpa duplikat @media.
   if (choice === 'light' || choice === 'dark') {
     document.documentElement.setAttribute('data-theme', choice);
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
@@ -50,6 +54,13 @@ export function updateThemeToggleUI(choice) {
 }
 
 export function initThemeToggle() {
+  // Kalau tema 'auto', ikuti perubahan setting sistem secara live.
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (getStoredTheme() === 'auto') setTheme('auto');
+    });
+  }
+
   const wrap = document.getElementById('themeToggle');
   if (!wrap) return;
 

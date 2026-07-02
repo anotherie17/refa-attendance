@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess, showConfirm } from '../../utils/modal.js';
-import { getErrorMessage, formatDateLabel } from '../../utils/helpers.js';
+import { getErrorMessage, formatDateLabel , escapeHtml} from '../../utils/helpers.js';
 
 const TYPE_LABEL = { sakit: 'Sakit', keluarga: 'Urusan Keluarga', lainnya: 'Lainnya' };
 
@@ -28,14 +28,14 @@ export async function loadAdminSpecialPermissions() {
       const tglLabel = formatDateLabel(item.start_date);
       return `
       <div class="admin-leave-card">
-        <div class="admin-leave-name">${item.employees?.nama || 'Tidak diketahui'}</div>
-        <div class="admin-leave-reason">${TYPE_LABEL[item.permission_type] || 'Izin'}: ${item.reason || '-'}</div>
+        <div class="admin-leave-name">${escapeHtml(item.employees?.nama || 'Tidak diketahui')}</div>
+        <div class="admin-leave-reason">${TYPE_LABEL[item.permission_type] || 'Izin'}: ${escapeHtml(item.reason || '-')}</div>
         <div class="admin-leave-date">Tanggal: ${tglLabel}</div>
-        <span class="status-warning">Pending</span>
+        <span class="status-warning">Menunggu</span>
         ${canAct ? `
         <div class="admin-leave-actions">
-          <button class="btn-izin-approve" data-izin-id="${item.id}">Approve</button>
-          <button class="btn-izin-reject" data-izin-id="${item.id}">Reject</button>
+          <button class="btn-izin-approve" data-izin-id="${item.id}">Setujui</button>
+          <button class="btn-izin-reject" data-izin-id="${item.id}">Tolak</button>
         </div>` : `
         <div class="admin-leave-note" style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic;">Hanya superadmin yang dapat menyetujui / menolak.</div>`}
       </div>`;

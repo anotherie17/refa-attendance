@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
 import { renderCalendarGrid } from '../utils/dom.js';
-import { getDaysInMonth, filterItemsByMonth, formatWITATime } from '../utils/helpers.js';
+import { getDaysInMonth, formatWITATime, escapeHtml } from '../utils/helpers.js';
 
 export function populateMonthFilter() {
   const select = document.getElementById('monthFilter');
@@ -43,15 +43,21 @@ export async function loadRiwayat() {
     const tahunNum = parseInt(tahun, 10);
     const bulanNum = parseInt(bulan, 10);
 
+    const startStr = monthValue + '-01';
+    const nextObj = new Date(tahunNum, bulanNum, 1); // bulan berikutnya
+    const nextStr = nextObj.getFullYear() + '-' + String(nextObj.getMonth() + 1).padStart(2, '0') + '-01';
+
     const { data, error } = await supabaseClient
       .from('attendance')
       .select('*, shifts(nama)')
       .eq('employee_id', state.currentEmployee.id)
+      .gte('tanggal', startStr)
+      .lt('tanggal', nextStr)
       .order('tanggal', { ascending: false });
 
     if (error) throw error;
 
-    const filteredData = filterItemsByMonth(data || [], monthValue, 'tanggal');
+    const filteredData = data || [];
 
     if (!filteredData || filteredData.length === 0) {
       listEl.innerHTML = '<div class="empty-state"><i data-lucide="inbox"></i>Tidak ada data absensi bulan ini</div>';
@@ -64,11 +70,11 @@ export async function loadRiwayat() {
       
       let times = '';
       if (att.jam_masuk) {
-        times += 'Check In: ' + formatWITATime(att.jam_masuk, true);
+        times += 'Masuk: ' + formatWITATime(att.jam_masuk, true);
       }
       if (att.jam_keluar) {
         const keluarTime = formatWITATime(att.jam_keluar, true);
-        times += times ? ' | Check Out: ' + keluarTime : 'Check Out: ' + keluarTime;
+        times += times ? ' | Keluar: ' + keluarTime : 'Keluar: ' + keluarTime;
       }
 
       let statusBadge = 'Tepat waktu';
@@ -77,7 +83,7 @@ export async function loadRiwayat() {
         statusBadge = 'Telat ' + menit + ' menit';
       }
 
-      return '<div class="attendance-item"><div class="attendance-date">' + hari + '</div>' + (att.shifts ? '<div class="attendance-shift">Shift: ' + att.shifts.nama + '</div>' : '') + '<div class="attendance-time">' + (times || '—') + '</div><span class="attendance-status">' + statusBadge + '</span></div>';
+      return '<div class="attendance-item"><div class="attendance-date">' + hari + '</div>' + (att.shifts ? '<div class="attendance-shift">Shift: ' + escapeHtml(att.shifts.nama) + '</div>' : '') + '<div class="attendance-time">' + (times || '—') + '</div><span class="attendance-status">' + statusBadge + '</span></div>';
     }).join('');
 
   } catch (err) {
@@ -104,10 +110,15 @@ export async function loadKalenderPribadi() {
     const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     const daysInMonth = getDaysInMonth(tahunNum, bulanNum);
 
+    const _moStart = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-01';
+    const _moEnd = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
+
     const { data: attData, error: attError } = await supabaseClient
       .from('attendance')
       .select('tanggal, status')
       .eq('employee_id', state.currentEmployee.id)
+      .gte('tanggal', _moStart)
+      .lte('tanggal', _moEnd)
       .order('tanggal', { ascending: true });
 
     if (attError) throw attError;
@@ -117,16 +128,16 @@ export async function loadKalenderPribadi() {
       .select('start_date')
       .eq('employee_id', state.currentEmployee.id)
       .eq('status', 'approved')
+      .gte('start_date', _moStart)
+      .lte('start_date', _moEnd)
       .order('start_date', { ascending: true });
 
     if (leaveError) throw leaveError;
 
-    const filteredAttData = filterItemsByMonth(attData || [], monthValue, 'tanggal');
-    const filteredLeaveData = filterItemsByMonth(leaveData || [], monthValue, 'start_date');
+    const filteredAttData = attData || [];
+    const filteredLeaveData = leaveData || [];
 
     const dayDataMap = {};
-    const _moStart = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-01';
-    const _moEnd = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
     const { data: offData } = await supabaseClient
       .from('day_off_requests')
       .select('off_date')
@@ -135,6 +146,15 @@ export async function loadKalenderPribadi() {
       .gte('off_date', _moStart)
       .lte('off_date', _moEnd);
     (offData || []).forEach(o => { dayDataMap[o.off_date] = 'libur'; });
+    // Izin khusus yang disetujui juga bukan "tidak hadir".
+    const { data: izinData } = await supabaseClient
+      .from('special_permission_requests')
+      .select('start_date')
+      .eq('employee_id', state.currentEmployee.id)
+      .eq('status', 'approved')
+      .gte('start_date', _moStart)
+      .lte('start_date', _moEnd);
+    (izinData || []).forEach(z => { dayDataMap[z.start_date] = 'cuti'; });
     (filteredAttData || []).forEach(a => {
       dayDataMap[a.tanggal] = (a.status && a.status.startsWith('telat_')) ? 'telat' : 'hadir';
     });

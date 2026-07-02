@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
-import { showError, showSuccess } from '../utils/modal.js';
-import { getErrorMessage } from '../utils/helpers.js';
+import { showError, showSuccess, showFieldError } from '../utils/modal.js';
+import { getErrorMessage, formatDateLabel , escapeHtml} from '../utils/helpers.js';
 
 export async function submitLeaveRequest() {
   if (state.isSubmitting) return;
@@ -11,7 +11,7 @@ export async function submitLeaveRequest() {
   const submitBtn = document.getElementById('submitLeaveBtn');
 
   if (!leaveDate) {
-    await showError('Data Belum Lengkap', 'Tanggal cuti harus diisi.');
+    showFieldError('leaveDate', 'Tanggal cuti harus diisi.');
     return;
   }
 
@@ -88,14 +88,14 @@ export async function loadLeaveRequests() {
     }
 
     listEl.innerHTML = data.map(item => {
-      let statusBadge = '<span class="status-warning">Pending</span>';
-      if (item.status === 'approved') statusBadge = '<span class="status-ok">Approved</span>';
-      if (item.status === 'rejected') statusBadge = '<span class="status-error">Rejected</span>';
+      let statusBadge = '<span class="status-warning">Menunggu</span>';
+      if (item.status === 'approved') statusBadge = '<span class="status-ok">Disetujui</span>';
+      if (item.status === 'rejected') statusBadge = '<span class="status-error">Ditolak</span>';
 
       return `
         <div class="attendance-item">
-          <div class="attendance-date">Tanggal: ${item.start_date}</div>
-          <div class="attendance-time">${item.reason || '-'}</div>
+          <div class="attendance-date">Tanggal: ${formatDateLabel(item.start_date)}</div>
+          <div class="attendance-time">${escapeHtml(item.reason || '-')}</div>
           ${statusBadge}
         </div>
       `;
