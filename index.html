@@ -751,8 +751,19 @@
 <script>
   (function () {
     function renderIcons() {
-      if (window.lucide && document.querySelector('[data-lucide]')) {
+      // Cuma render kalau ada <i data-lucide> yang BELUM jadi svg. Penting:
+      // svg hasil createIcons() ternyata masih bawa atribut data-lucide,
+      // jadi kalau selectornya '[data-lucide]' doang, tiap panggilan bakal
+      // bongkar & bikin ulang SEMUA ikon (~68 elemen) -> memicu mutation ->
+      // observer manggil render lagi -> loop 60x/detik selamanya. Itu yang
+      // bikin app kerasa berat & tap sering gak nyantol di HP low-end.
+      if (window.lucide && document.querySelector('i[data-lucide]')) {
         window.lucide.createIcons();
+        // Cabut data-lucide dari svg yang sudah jadi supaya panggilan
+        // berikutnya tidak memproses ulang ikon yang sama (pemutus loop).
+        document.querySelectorAll('svg[data-lucide]').forEach(function (s) {
+          s.removeAttribute('data-lucide');
+        });
       }
     }
     var scheduled = false;
@@ -771,8 +782,10 @@
       for (var i = 0; i < nodes.length; i++) {
         var n = nodes[i];
         if (n.nodeType !== 1) continue;
-        if (n.hasAttribute && n.hasAttribute('data-lucide')) return true;
-        if (n.querySelector && n.querySelector('[data-lucide]')) return true;
+        // Spesifik <i data-lucide> (ikon yang BELUM dirender). Svg hasil render
+        // jangan dihitung — itu output createIcons sendiri, bukan ikon baru.
+        if (n.matches && n.matches('i[data-lucide]')) return true;
+        if (n.querySelector && n.querySelector('i[data-lucide]')) return true;
       }
       return false;
     }

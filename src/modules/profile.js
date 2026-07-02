@@ -34,6 +34,8 @@ export async function changePassword() {
   if (!confirmed) return;
 
   state.isSubmitting = true;
+  // Simpan innerHTML asli supaya ikon gembok di tombol gak hilang saat di-restore.
+  const originalBtnHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Menyimpan...';
 
@@ -53,6 +55,6 @@ export async function changePassword() {
   } finally {
     state.isSubmitting = false;
     btn.disabled = false;
-    btn.innerHTML = 'Simpan Password Baru';
+    btn.innerHTML = originalBtnHtml;
   }
 }

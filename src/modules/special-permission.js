@@ -23,7 +23,8 @@ export async function submitSpecialPermission() {
   const endDate = tanggal;
 
   state.isSubmitting = true;
-  const originalBtnText = submitBtn.textContent;
+  // Simpan innerHTML (bukan textContent) supaya ikon di tombol gak hilang saat di-restore.
+  const originalBtnHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span>Mengirim...';
 
@@ -53,7 +54,7 @@ export async function submitSpecialPermission() {
   } finally {
     state.isSubmitting = false;
     submitBtn.disabled = false;
-    submitBtn.textContent = originalBtnText;
+    submitBtn.innerHTML = originalBtnHtml;
   }
 }
 
