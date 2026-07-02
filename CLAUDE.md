@@ -87,6 +87,7 @@ approve** (admin hanya kelola karyawan, lihat rekap, export).
 ```
 index.html            # semua markup (login, forcePasswordPage, dashboard, admin)
 style.css             # semua styling + CSS var tema (light/dark/auto)
+src/icons.js          # bundle lokal 45 ikon lucide (classic script, BUKAN module)
 src/main.js           # wiring semua event listener + init
 src/state.js          # state global (currentEmployee, dll)
 src/config.js         # konfigurasi (mis. koordinat kantor, radius GPS)
@@ -129,6 +130,11 @@ admin pakai `switchAdminTab`.
 - `formatStatusLabel`, `formatDurasiJam`, `HARI_LABELS` di `helpers.js` — dipakai
   bareng oleh dayoff.js, admin/dayoff.js, dan file export Excel/PDF (satu sumber,
   jangan re-declare lokal lagi).
+- **Ikon:** TIDAK pakai CDN lucide lagi. `src/icons.js` = bundle lokal 45 ikon
+  (~21KB, diekstrak dari lucide@1.21.0) yang mendefinisikan
+  `window.lucide.createIcons()` — semua pemanggil lama tetap jalan. Nambah ikon
+  baru: ambil svg dari lucide.dev, hapus atribut `data-lucide`-nya, tambah ke
+  map `LUCIDE_SVGS`. Ikon yang tak ada di bundle → console.warn, tidak crash.
 - **Badge status (CSS):** `status-ok` (hijau), `status-warning` (kuning),
   `status-error` (merah), `status-info` (biru), `status-neutral` (abu).
 - **Tema:** semua warna via CSS variable (`--surface`, `--line`, `--text-2`,
@@ -270,6 +276,18 @@ di-skip atas permintaan user). Ringkas:
   (`refreshLeaveBalance` di leave.js) — gak basi lagi setelah approval.
 - Dedupe panggilan dobel saat login: `updateUserInfo()` (2x signed URL KTP)
   dan `loadBirthdayReminder()`.
+
+**Sesi 2 Jul 2026 (optimasi performa final)**
+- **Lucide CDN (409KB) diganti bundle lokal `src/icons.js` (~21KB, 45 ikon)** —
+  diekstrak dari lucide@1.21.0 persis, render identik, API
+  `window.lucide.createIcons()` dipertahankan. −95% payload JS ikon, tanpa
+  request CDN ikon. Diverifikasi headless: semua ikon statis+dinamis render,
+  class tambahan (mis. ktp-chevron) kebawa, nama tak dikenal graceful.
+- `<link rel="preconnect">` ke supabase.co & cdn.jsdelivr.net (potong latensi
+  request pertama).
+- Query `day_off_requests` di ringkasan/rekap/export dibatasi ke minggu yang
+  nyentuh bulan terpilih (`week_start` range) — sebelumnya SELURUH riwayat off
+  ke-download tiap load, makin lama makin berat. Helper baru: `addDaysStr()`.
 
 **Perlu tindakan user:**
 - Kode app-side sudah di-**commit ke git lokal** — masih perlu **push + deploy

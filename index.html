@@ -8,6 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Refa Absensi">
   <title>Refa Printing — Absensi</title>
+  <!-- Buka koneksi ke server data & CDN lebih awal — memangkas latensi request pertama -->
+  <link rel="preconnect" href="https://evfboifywhpqvcqupnnp.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <!-- Anti-flash: apply tema tersimpan SEBELUM CSS dirender, supaya tidak
        kelihatan kedip putih sesaat sebelum dark mode aktif. Inline & kecil
        sengaja, supaya tidak nunggu file JS lain ke-load dulu. -->
@@ -743,7 +746,9 @@
 <!-- ===== LIBRARIES (deferred — tidak memblok first paint) ===== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <!-- Chart.js / XLSX / jsPDF dimuat lazy hanya di halaman admin (src/utils/lazy-libs.js) -->
-<script src="https://cdn.jsdelivr.net/npm/lucide@1.21.0/dist/umd/lucide.min.js" defer></script>
+<!-- Ikon: bundle lokal 45 ikon (~21KB) menggantikan lucide CDN penuh (409KB).
+     API window.lucide.createIcons() dipertahankan — lihat src/icons.js. -->
+<script src="src/icons.js" defer></script>
 
 <script type="module" src="src/main.js"></script>
 

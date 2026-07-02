@@ -1,6 +1,6 @@
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess } from '../../utils/modal.js';
-import { getErrorMessage, computeMonthlyAttendance, HARI_LABELS as HARI, formatStatusLabel, formatDurasiJam } from '../../utils/helpers.js';
+import { getErrorMessage, computeMonthlyAttendance, HARI_LABELS as HARI, formatStatusLabel, formatDurasiJam, addDaysStr } from '../../utils/helpers.js';
 import { ensureLib } from '../../utils/lazy-libs.js';
 
 // ---- util unduh foto -> thumbnail dataURL (dipakai export PDF per karyawan) ----
@@ -80,7 +80,7 @@ export async function exportKaryawanToPDF(employeeId, monthValue, onProgress) {
       supabaseClient.from('employees').select('id, nama, jabatan, created_at, tanggal_masuk').eq('id', employeeId).single(),
       supabaseClient.from('attendance').select('tanggal, jam_masuk, jam_keluar, status, shift_id, foto_masuk_url, foto_keluar_url').eq('employee_id', employeeId).gte('tanggal', startDateStr).lt('tanggal', endDateStr).order('tanggal', { ascending: true }),
       supabaseClient.from('leave_requests').select('start_date, end_date, reason').eq('employee_id', employeeId).eq('status', 'approved').lt('start_date', endDateStr).gte('end_date', startDateStr).order('start_date', { ascending: true }),
-      supabaseClient.from('day_off_requests').select('week_start, off_date').eq('employee_id', employeeId).eq('status', 'approved'),
+      supabaseClient.from('day_off_requests').select('week_start, off_date').eq('employee_id', employeeId).eq('status', 'approved').gte('week_start', addDaysStr(startDateStr, -6)).lt('week_start', endDateStr),
       supabaseClient.from('shifts').select('id, nama, jam_mulai, jam_selesai')
     ]);
     if (empRes.error) throw empRes.error;

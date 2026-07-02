@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess } from '../../utils/modal.js';
-import { getErrorMessage, getDaysInMonth, formatDateLabel, computeMonthlyAttendance, filterTrackedEmployees, groupRowsByEmployee , escapeHtml} from '../../utils/helpers.js';
+import { getErrorMessage, getDaysInMonth, formatDateLabel, computeMonthlyAttendance, filterTrackedEmployees, groupRowsByEmployee, escapeHtml, addDaysStr } from '../../utils/helpers.js';
 import { renderCalendarGrid } from '../../utils/dom.js';
 import { ensureLib } from '../../utils/lazy-libs.js';
 
@@ -62,10 +62,14 @@ export async function computeRingkasanBulan(monthValue) {
     .gte('end_date', startDateStr);
   if (leaveError) throw leaveError;
 
+  // Cuma minggu yang nyentuh bulan ini (week_start paling awal = 6 hari sebelum
+  // tanggal 1) — tanpa filter ini seluruh riwayat off ikut ke-download tiap load.
   const { data: dayOffRows, error: dayOffError } = await supabaseClient
     .from('day_off_requests')
     .select('employee_id, week_start, off_date')
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .gte('week_start', addDaysStr(startDateStr, -6))
+    .lt('week_start', endDateStr);
   if (dayOffError) throw dayOffError;
 
   let totalHadir = 0, totalTelat = 0, totalCuti = 0, totalAlpa = 0, totalWajib = 0;

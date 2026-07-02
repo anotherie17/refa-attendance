@@ -11,6 +11,13 @@ export function getTodayWITA() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
 }
 
+// Geser tanggal 'YYYY-MM-DD' sebanyak n hari (boleh negatif), hasil string juga.
+export function addDaysStr(dateStr, n) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n, 12);
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+}
+
 export function getWeekStart(dateInput) {
   const dateStr = dateInput
     ? (typeof dateInput === 'string' ? dateInput.slice(0, 10) :

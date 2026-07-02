@@ -3,7 +3,7 @@ import { showError, showSuccess } from '../../utils/modal.js';
 import {
   getErrorMessage, computeMonthlyAttendance, skeletonList,
   filterTrackedEmployees, groupRowsByEmployee, escapeHtml,
-  HARI_LABELS as HARI, formatStatusLabel, formatDurasiJam
+  HARI_LABELS as HARI, formatStatusLabel, formatDurasiJam, addDaysStr
 } from '../../utils/helpers.js';
 import { ensureLib } from '../../utils/lazy-libs.js';
 
@@ -63,10 +63,13 @@ export async function getRekapBulananData(monthValue) {
     .gte('end_date', startDateStr);
   if (leaveError) throw leaveError;
 
+  // Cuma minggu yang nyentuh bulan ini — tanpa filter, seluruh riwayat off ke-download.
   const { data: dayOffRows, error: dayOffError } = await supabaseClient
     .from('day_off_requests')
     .select('employee_id, week_start, off_date')
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .gte('week_start', addDaysStr(startDateStr, -6))
+    .lt('week_start', endDateStr);
   if (dayOffError) throw dayOffError;
 
   const attByEmp = groupRowsByEmployee(attendanceRows);
@@ -197,7 +200,7 @@ export async function exportRekapToExcel(monthValue) {
       supabaseClient.from('employees').select('id, nama, jabatan, created_at, tanggal_masuk, leave_balance, leave_entitlement, role').eq('is_active', true).order('nama'),
       supabaseClient.from('attendance').select('employee_id, tanggal, jam_masuk, jam_keluar, status, shift_id, foto_masuk_url, foto_keluar_url').gte('tanggal', startDateStr).lt('tanggal', endDateStr),
       supabaseClient.from('leave_requests').select('employee_id, start_date, end_date, reason').eq('status', 'approved').lt('start_date', endDateStr).gte('end_date', startDateStr),
-      supabaseClient.from('day_off_requests').select('employee_id, week_start, off_date').eq('status', 'approved'),
+      supabaseClient.from('day_off_requests').select('employee_id, week_start, off_date').eq('status', 'approved').gte('week_start', addDaysStr(startDateStr, -6)).lt('week_start', endDateStr),
       supabaseClient.from('shifts').select('id, nama, jam_mulai, jam_selesai')
     ]);
     if (empRes.error) throw empRes.error;
