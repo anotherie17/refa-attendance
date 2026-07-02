@@ -2,6 +2,29 @@ import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
 import { renderCalendarGrid } from '../utils/dom.js';
 import { getDaysInMonth, formatWITATime, escapeHtml } from '../utils/helpers.js';
+import { showError } from '../utils/modal.js';
+import { exportKaryawanToPDF } from './admin/attendance-pdf.js';
+
+// Karyawan unduh slip absensi bulanannya sendiri (reuse logic PDF admin per-karyawan).
+export async function exportMyAttendancePDF() {
+  const monthValue = document.getElementById('monthFilter').value;
+  if (!monthValue) {
+    await showError('Pilih Bulan', 'Pilih bulan terlebih dahulu sebelum unduh slip absensi.');
+    return;
+  }
+  const btn = document.getElementById('exportMyPdfBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Membuat...';
+  try {
+    await exportKaryawanToPDF(state.currentEmployee.id, monthValue, (done, total) => {
+      btn.innerHTML = '<span class="spinner"></span>Memuat foto ' + done + '/' + total + '...';
+    });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
 
 export function populateMonthFilter() {
   const select = document.getElementById('monthFilter');
@@ -97,7 +120,8 @@ export async function loadKalenderPribadi() {
   const container = document.getElementById('kalenderPribadiContainer');
 
   if (!monthValue) {
-    container.innerHTML = 'Pilih bulan untuk melihat kalender';
+    container.innerHTML = '<div class="empty-state"><i data-lucide="calendar-days"></i>Pilih bulan untuk melihat kalender</div>';
+    if (window.lucide) window.lucide.createIcons();
     return;
   }
 
@@ -162,7 +186,7 @@ export async function loadKalenderPribadi() {
       dayDataMap[l.start_date] = 'cuti';
     });
 
-    renderCalendarGrid('kalenderPribadiContainer', tahunNum, bulanNum, dayDataMap);
+    renderCalendarGrid('kalenderPribadiContainer', tahunNum, bulanNum, dayDataMap, state.currentEmployee?.tanggal_masuk || null);
 
   } catch (err) {
     console.error('loadKalenderPribadi error:', err);

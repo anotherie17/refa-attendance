@@ -51,7 +51,7 @@
         <form id="loginForm">
           <div class="form-group">
             <label for="loginEmail">Email</label>
-            <input type="email" id="loginEmail" placeholder="nama@refaprinting.com" required>
+            <input type="email" id="loginEmail" placeholder="nama@refaprinting.my.id" required>
           </div>
           <div class="form-group">
             <label for="loginPassword">Password</label>
@@ -297,9 +297,11 @@
             </select>
           </div>
 
+          <button id="exportMyPdfBtn" class="secondary-btn" style="margin-bottom:12px;"><i data-lucide="file-text"></i> Unduh Slip Absensi (PDF)</button>
+
           <div class="info-box">
             <div class="info-label"><span class="icon"><i data-lucide="calendar-days"></i></span>Kalender Kehadiran &amp; Cuti</div>
-            <div id="kalenderPribadiContainer">Pilih bulan untuk melihat kalender</div>
+            <div id="kalenderPribadiContainer"><div class="empty-state"><i data-lucide="calendar-days"></i>Pilih bulan untuk melihat kalender</div></div>
           </div>
 
           <div id="attendanceList"></div>
@@ -485,10 +487,11 @@
 
           <div class="info-box">
             <div class="info-label"><i data-lucide="calendar-days"></i> Kalender Kehadiran Semua Karyawan</div>
-            <div style="margin-bottom:8px;">
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
               <select id="kalenderAdminEmployeeFilter" style="width:100%;"></select>
+              <select id="kalenderAdminMonthFilter" style="width:auto;flex-shrink:0;"></select>
             </div>
-            <div id="kalenderAdminContainer">Pilih karyawan untuk melihat kalender</div>
+            <div id="kalenderAdminContainer"><div class="empty-state"><i data-lucide="calendar-days"></i>Pilih karyawan untuk melihat kalender</div></div>
           </div>
         </div>
 
@@ -544,6 +547,14 @@
 
         <!-- TAB: ABSENSI -->
         <div id="adminAbsensiSection" class="admin-section">
+
+          <div class="info-box">
+            <div class="info-label" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span><i data-lucide="timer"></i> Kelola Shift</span>
+              <button id="openShiftFormBtn" style="margin-top:0;width:auto;padding:8px 14px;font-size:13px;"><i data-lucide="plus"></i> Tambah</button>
+            </div>
+            <div id="adminShiftList" style="margin-top:10px;"><div class="skel-card skeleton"></div><div class="skel-card skeleton"></div></div>
+          </div>
 
           <div class="sub-toggle">
             <button id="absensiToggleHariIni" class="active">Hari Ini</button>
@@ -664,6 +675,34 @@
     <div class="form-modal-actions">
       <button id="empFormCancelBtn" class="modal-btn-cancel">Batal</button>
       <button id="empFormSaveBtn">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FORM MODAL: TAMBAH / EDIT SHIFT ===== -->
+<div id="shiftFormOverlay" class="form-modal-overlay">
+  <div class="form-modal-box">
+    <div class="form-modal-title" id="shiftFormTitle">Tambah Shift</div>
+    <div class="form-modal-subtitle">Nama shift, jam mulai, dan jam selesai dipakai karyawan saat pilih shift absen.</div>
+
+    <div class="form-group">
+      <label>Nama Shift</label>
+      <input type="text" id="shiftFormNama" placeholder="Contoh: Shift Pagi">
+    </div>
+
+    <div class="form-group">
+      <label>Jam Mulai</label>
+      <input type="time" id="shiftFormJamMulai">
+    </div>
+
+    <div class="form-group">
+      <label>Jam Selesai</label>
+      <input type="time" id="shiftFormJamSelesai">
+    </div>
+
+    <div class="form-modal-actions">
+      <button id="shiftFormCancelBtn" class="modal-btn-cancel">Batal</button>
+      <button id="shiftFormSaveBtn">Simpan</button>
     </div>
   </div>
 </div>

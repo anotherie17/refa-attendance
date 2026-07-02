@@ -93,14 +93,18 @@ src/utils/
   theme.js            # light/dark/auto
   ktp-cropper.js      # cropper KTP (canvas, rasio ID-1, tanpa library)
 src/modules/
-  auth.js             # login(), checkExistingSession(), enterDashboard(), logout()
+  auth.js             # login(), checkExistingSession(), enterDashboard(), logout(skipConfirm)
   attendance.js       # kamera, capturePhoto(), check-in/out
   force-password.js   # layar wajib ganti password (karyawan)
-  greeting.js         # bubble sapaan acak (pool 60, rasio 1:3)
-  history.js          # riwayat absensi karyawan
+  greeting.js         # bubble sapaan acak (pool 60, rasio 1:3) + ucapan ultah sendiri
+  history.js          # riwayat absensi karyawan + export slip PDF pribadi
   leave.js / dayoff.js / special-permission.js   # pengajuan karyawan
   profile.js / shifts.js
-  admin/attendance.js # rekap + "Absensi hari ini" + export Excel
+  admin/attendance.js       # barrel re-export (lihat 3 file di bawah)
+  admin/attendance-today.js # status "Absensi hari ini"
+  admin/attendance-rekap.js # rekap bulanan + export Excel
+  admin/attendance-pdf.js   # export PDF per karyawan + foto (dipakai admin & slip pribadi)
+  admin/shifts.js     # CRUD shift (tab Absensi admin, kartu "Kelola Shift")
   admin/dashboard.js / employee.js / leave.js / dayoff.js / special-permission.js
 ```
 
@@ -112,9 +116,14 @@ admin pakai `switchAdminTab`.
 ## 5. KONVENSI & GOTCHA TEKNIS
 
 - **Waktu → WITA:** gunakan `formatWITATime(value, withSeconds)` di `helpers.js`
-  untuk semua tampilan jam. Export Excel pakai `fmtWITA` (hardcode +8) di
-  `admin/attendance.js`. Tanggal "hari ini" di admin: `toLocaleDateString('en-CA',
-  {timeZone:'Asia/Makassar'})`.
+  untuk semua tampilan jam. Export Excel/PDF pakai `fmtWITA` lokal (hardcode +8) di
+  `admin/attendance-rekap.js` & `attendance-pdf.js`. Untuk "hari ini"/"minggu ini"
+  (bukan jam), pakai `getTodayWITA()` di `helpers.js` — dipakai `updateClock`,
+  `getWeekStart`, `renderCalendarGrid`. **Jangan** pakai `new Date()` device-local
+  buat acuan tanggal, selalu lewat `getTodayWITA()`.
+- `formatStatusLabel`, `formatDurasiJam`, `HARI_LABELS` di `helpers.js` — dipakai
+  bareng oleh dayoff.js, admin/dayoff.js, dan file export Excel/PDF (satu sumber,
+  jangan re-declare lokal lagi).
 - **Badge status (CSS):** `status-ok` (hijau), `status-warning` (kuning),
   `status-error` (merah), `status-info` (biru), `status-neutral` (abu).
 - **Tema:** semua warna via CSS variable (`--surface`, `--line`, `--text-2`,
@@ -126,7 +135,13 @@ admin pakai `switchAdminTab`.
   device yang hasilnya terbalik, toggle di 2 titik itu.
 - **Greeting bubble:** melayang absolute di dalam `.attendance-hero`, glass,
   auto-hilang ~3.6s, muncul tiap masuk tab Absen. Edit teks di `SANTAI`/`PERHATIAN`
-  di `greeting.js` (rasio 1:3 diatur `buildBag()`).
+  di `greeting.js` (rasio 1:3 diatur `buildBag()`). Kalau `tanggal_lahir` karyawan
+  match hari ini (WITA), pool `BIRTHDAY` menang (lihat `isBirthdayToday()`).
+- **Kelola Shift (admin):** tab Absensi → kartu "Kelola Shift" (`admin/shifts.js`).
+  RLS tabel `shifts` sudah dibuka INSERT/UPDATE/DELETE untuk `is_admin()` (migration
+  `add_shifts_admin_write_policies`, 2 Jul 2026). Hapus shift yang masih dipakai di
+  `attendance` akan gagal (FK constraint) — sudah ada pesan error ramah di
+  `getErrorMessage()` ("Data ini masih dipakai di tempat lain, tidak bisa dihapus.").
 
 ---
 
@@ -196,9 +211,39 @@ aktif untuk 10 karyawan; Nurul Ayu dikecualikan), semua sesi sudah ditutup
   otomatis must_change_password=true. Leaked Password Protection: user memilih
   skip.
 
+**Sesi 2 Jul 2026 (lanjutan) — FULL AUDIT + eksekusi 5 batch**
+Audit menyeluruh (Experience/Tampilan/Logic) di luar yang sudah dibenerin Batch
+1-7 di atas, lalu semua batch dieksekusi (kecuali kelola lokasi kantor, sengaja
+di-skip atas permintaan user). Ringkas:
+- B1: Fix placeholder email login ke domain asli (`@refaprinting.my.id`), hapus
+  CSS mati `.uid-instruction-box`, fix dobel-konfirmasi logout setelah ganti
+  password (`logout(skipConfirm)` — sekalian fix bug laten: listener logout
+  dulu dipasang langsung `addEventListener('click', auth.logout)` yang bakal
+  nge-pass click-event sebagai argumen), loading state tombol Export PDF/Excel,
+  empty-state kalender pakai `.empty-state`+icon konsisten.
+- B2: `getTodayWITA()` helper baru — dipakai konsisten di jam header
+  (`updateClock`), `getWeekStart` (day-off), `renderCalendarGrid`, gantiin
+  `new Date()` device-local yang sebelumnya bisa gak sinkron sama tanggal WITA
+  server. Kalender gak lagi tandain merah hari sebelum `tanggal_masuk` karyawan.
+  Filter bulan baru di Kalender Admin (sebelumnya cuma bulan berjalan).
+- B3 (refactor, tanpa ubah behavior): `admin/attendance.js` (936 baris) dipecah
+  jadi `attendance-today.js` / `attendance-rekap.js` / `attendance-pdf.js`, file
+  asli jadi barrel re-export 9 baris. Fungsi format yang dobel-copy di beberapa
+  file (`fmtWITA`/`fmtStatus`/`fmtDurasi`/array `HARI`) ditarik ke `helpers.js`
+  (`HARI_LABELS`, `formatStatusLabel`, `formatDurasiJam`).
+- B4 (DB, sudah di-apply): migration `add_shifts_admin_write_policies` — RLS
+  INSERT/UPDATE/DELETE tabel `shifts` untuk `is_admin()` (sebelumnya read-only,
+  shift harus dikelola SQL manual). Modul admin baru `admin/shifts.js` + kartu
+  "Kelola Shift" di tab Absensi. Lokasi kantor (office_config) TIDAK disentuh.
+- B5: Greeting bubble kasih ucapan ultah spesial pas hari ulang tahun karyawan
+  sendiri (`isBirthdayToday()`). Tombol baru "Unduh Slip Absensi (PDF)" di tab
+  Riwayat karyawan (reuse `exportKaryawanToPDF` dari sisi admin). Progress text
+  ("Memuat foto x/y...") pas export PDF berfoto banyak.
+
 **Perlu tindakan user:**
-- Deploy build terbaru (WITA+kamera, greeting bubble, admin cross-check) bila
-  belum — fitur app-side menumpuk di zip, tidak otomatis live.
+- **DB (shifts RLS) sudah live**, tidak perlu deploy. Kode app-side (semua batch
+  di atas) sudah di-**commit ke git lokal** — masih perlu **push + deploy manual**
+  ke GitHub Pages baru kelihatan di https://refaprinting.my.id.
 - Verifikasi orientasi foto kamera di 1–2 HP nyata (arah mirror beda antar device).
 - Upload foto KTP 10 karyawan via admin (Edit Karyawan).
 - Aktifkan "Leaked Password Protection" di Supabase Auth dashboard.

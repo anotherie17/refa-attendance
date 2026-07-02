@@ -45,7 +45,7 @@ export async function changePassword() {
     document.getElementById('confirmPasswordInput').value = '';
 
     await showSuccess('Password Diperbarui', 'Password Anda berhasil diganti. Silakan login kembali.');
-    await logout();
+    await logout(true);
 
   } catch (err) {
     console.error(err);

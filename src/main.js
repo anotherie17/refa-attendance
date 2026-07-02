@@ -18,6 +18,7 @@ import * as dayoff from './modules/dayoff.js';
 import * as adminDayoff from './modules/admin/dayoff.js';
 import * as special from './modules/special-permission.js';
 import * as adminSpecial from './modules/admin/special-permission.js';
+import * as adminShifts from './modules/admin/shifts.js';
 import { initThemeToggle } from './utils/theme.js';
 
 // ===== BOOTSTRAP =====
@@ -55,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await adminDashboard.loadBirthdayReminder();
       adminDashboard.setTrenMode('semua');
       adminDashboard.populateKalenderAdminFilter();
+      adminDashboard.populateKalenderAdminMonthFilter();
       adminLeave.populateRiwayatCutiFilter();
       adminAttendance.populateRekapMonthFilter();
     }
@@ -88,6 +90,7 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       await adminDashboard.loadBirthdayReminder();
       adminDashboard.setTrenMode('semua');
       adminDashboard.populateKalenderAdminFilter();
+      adminDashboard.populateKalenderAdminMonthFilter();
       adminLeave.populateRiwayatCutiFilter();
       adminAttendance.populateRekapMonthFilter();
     }
@@ -162,6 +165,7 @@ document.querySelectorAll('.admin-tab').forEach(btn => {
       adminDashboard.loadRingkasanDashboard();
       adminDashboard.loadTrenKeterlambatan();
       adminDashboard.populateKalenderAdminFilter();
+      adminDashboard.populateKalenderAdminMonthFilter();
     }
     if (tab === 'approval') {
       adminLeave.loadAdminLeaveRequests();
@@ -176,6 +180,7 @@ document.querySelectorAll('.admin-tab').forEach(btn => {
       adminEmployee.loadEmployeeList();
     }
     if (tab === 'absensi') {
+      adminShifts.loadShiftList();
       adminAttendance.loadAdminAbsensiHariIni();
       adminAttendance.populateRekapMonthFilter();
     }
@@ -223,17 +228,31 @@ document.getElementById('monthFilter')?.addEventListener('change', () => {
   history.loadKalenderPribadi();
 });
 
+// HISTORY: EXPORT SLIP ABSENSI PRIBADI (PDF)
+document.getElementById('exportMyPdfBtn')?.addEventListener('click', history.exportMyAttendancePDF);
+
 // PROFILE - GANTI PASSWORD
 document.getElementById('changePasswordBtn')?.addEventListener('click', profile.changePassword);
 
 // LOGOUT
 document.querySelectorAll('.logout-btn').forEach(btn => {
-  btn.addEventListener('click', auth.logout);
+  btn.addEventListener('click', () => auth.logout());
 });
 
 // ADMIN: RINGKASAN
 document.getElementById('ringkasanMonthFilter')?.addEventListener('change', adminDashboard.loadRingkasanDashboard);
-document.getElementById('exportRingkasanBtn')?.addEventListener('click', adminDashboard.exportRingkasanToPDF);
+document.getElementById('exportRingkasanBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('exportRingkasanBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Membuat...';
+  try {
+    await adminDashboard.exportRingkasanToPDF();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+});
 
 // ADMIN: TREN CHART
 document.getElementById('trenToggleSemua')?.addEventListener('click', () => adminDashboard.setTrenMode('semua'));
@@ -242,6 +261,7 @@ document.getElementById('trenEmployeeFilter')?.addEventListener('change', adminD
 
 // ADMIN: KALENDER ADMIN
 document.getElementById('kalenderAdminEmployeeFilter')?.addEventListener('change', adminDashboard.loadKalenderAdmin);
+document.getElementById('kalenderAdminMonthFilter')?.addEventListener('change', adminDashboard.loadKalenderAdmin);
 
 // ADMIN: ABSENSI TOGGLE
 document.getElementById('absensiToggleHariIni')?.addEventListener('click', () => {
@@ -278,6 +298,24 @@ document.getElementById('openEmployeeFormBtn')?.addEventListener('click', () => 
 document.getElementById('empFormSaveBtn')?.addEventListener('click', adminEmployee.saveEmployee);
 document.getElementById('empFormCancelBtn')?.addEventListener('click', closeEmployeeForm);
 document.getElementById('empFormKtpFile')?.addEventListener('change', adminEmployee.onKtpFileSelected);
+
+// ADMIN: KELOLA SHIFT
+document.getElementById('openShiftFormBtn')?.addEventListener('click', () => adminShifts.openShiftForm(null));
+document.getElementById('shiftFormSaveBtn')?.addEventListener('click', adminShifts.saveShift);
+document.getElementById('shiftFormCancelBtn')?.addEventListener('click', adminShifts.closeShiftForm);
+document.getElementById('adminShiftList')?.addEventListener('click', (e) => {
+  const editBtn = e.target.closest('.shift-edit-btn');
+  if (editBtn) {
+    const id = editBtn.dataset.shiftId;
+    if (id) adminShifts.openShiftFormById(id);
+    return;
+  }
+  const deleteBtn = e.target.closest('.shift-delete-btn');
+  if (deleteBtn) {
+    const id = deleteBtn.dataset.shiftId;
+    if (id) adminShifts.deleteShift(id);
+  }
+});
 
 // ===== EVENT DELEGATION (UNTUK KONTEN DINAMIS) =====
 
@@ -369,11 +407,19 @@ document.getElementById('adminEmployeeList')?.addEventListener('click', async (e
 });
 
 // Admin Attendance: Export Excel
-document.getElementById('adminRekapBulanan')?.addEventListener('click', (e) => {
+document.getElementById('adminRekapBulanan')?.addEventListener('click', async (e) => {
   const exportBtn = e.target.closest('#exportRekapBtn');
-  if (exportBtn) {
-    const month = exportBtn.dataset.month;
-    if (month) adminAttendance.exportRekapToExcel(month);
+  if (!exportBtn) return;
+  const month = exportBtn.dataset.month;
+  if (!month) return;
+  const orig = exportBtn.innerHTML;
+  exportBtn.disabled = true;
+  exportBtn.innerHTML = '<span class="spinner"></span>Membuat...';
+  try {
+    await adminAttendance.exportRekapToExcel(month);
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = orig;
   }
 });
 
@@ -388,7 +434,9 @@ document.getElementById('adminRekapBulanan')?.addEventListener('click', async (e
   pdfBtn.disabled = true;
   pdfBtn.textContent = 'Membuat...';
   try {
-    await adminAttendance.exportKaryawanToPDF(empId, month);
+    await adminAttendance.exportKaryawanToPDF(empId, month, (done, total) => {
+      pdfBtn.textContent = 'Memuat foto ' + done + '/' + total + '...';
+    });
   } finally {
     pdfBtn.disabled = false;
     pdfBtn.textContent = orig;

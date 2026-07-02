@@ -4,9 +4,20 @@ export function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
+// "Hari ini" SELALU dalam WITA (Asia/Makassar), bukan timezone device.
+// Dipakai di semua tempat yang butuh acuan "hari ini" (kalender, week-start dayoff, jam header)
+// supaya konsisten dengan tanggal yang dihitung server (checkin/checkout_attendance RPC).
+export function getTodayWITA() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+}
+
 export function getWeekStart(dateInput) {
-  const d = dateInput ? new Date(dateInput) : new Date();
-  d.setHours(0, 0, 0, 0);
+  const dateStr = dateInput
+    ? (typeof dateInput === 'string' ? dateInput.slice(0, 10) :
+        dateInput.getFullYear() + '-' + String(dateInput.getMonth() + 1).padStart(2, '0') + '-' + String(dateInput.getDate()).padStart(2, '0'))
+    : getTodayWITA();
+  const [y, m, dNum] = dateStr.split('-').map(Number);
+  const d = new Date(y, m - 1, dNum, 12); // jam 12 siang -> aman dari pergeseran DST/timezone
   d.setDate(d.getDate() - d.getDay());
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -75,6 +86,26 @@ export function formatWITATime(value, withSeconds = true) {
 export function formatAttendanceTime(value) {
   if (!value) return '-';
   return formatWITATime(value, true);
+}
+
+// Nama hari (index 0 = Minggu, cocok dengan Date.getDay()). Dipakai di banyak
+// tempat (dayoff, admin dayoff, export rekap/PDF) — satu sumber biar konsisten.
+export const HARI_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+// Label status absensi mentah ('tepat_waktu' / 'telat_15' / dst) -> teks tampilan.
+export function formatStatusLabel(status) {
+  if (!status) return '-';
+  if (status === 'tepat_waktu') return 'Tepat Waktu';
+  if (status.startsWith('telat_')) return 'Telat ' + status.split('_')[1] + ' menit';
+  return status;
+}
+
+// Durasi antara jam masuk & keluar (timestamptz), format "1j 30m".
+export function formatDurasiJam(masuk, keluar) {
+  if (!masuk || !keluar) return '-';
+  const ms = new Date(keluar) - new Date(masuk);
+  if (ms <= 0) return '< 1m';
+  return Math.floor(ms / 3600000) + 'j ' + Math.floor((ms % 3600000) / 60000) + 'm';
 }
 
 export function getAttendanceStatusLabel(todayAttendance) {
@@ -215,6 +246,9 @@ export function getErrorMessage(err, context) {
   }
   if (lower.includes('row-level security') || lower.includes('permission denied for')) {
     return 'Anda tidak memiliki akses untuk melakukan tindakan ini.';
+  }
+  if (lower.includes('violates foreign key constraint')) {
+    return 'Data ini masih dipakai di tempat lain, tidak bisa dihapus.';
   }
   if (lower.includes('no rows') || lower.includes('not found') || lower.includes('pgrst116')) {
     return 'Data tidak ditemukan.';

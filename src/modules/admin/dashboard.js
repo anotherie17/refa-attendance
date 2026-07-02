@@ -339,24 +339,52 @@ export async function populateKalenderAdminFilter() {
   }
 }
 
+export function populateKalenderAdminMonthFilter() {
+  const select = document.getElementById('kalenderAdminMonthFilter');
+  if (!select || select.options.length > 0) return;
+  const now = new Date();
+  const currentValue = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+  }
+  select.value = currentValue;
+}
+
 export async function loadKalenderAdmin() {
   const employeeId = document.getElementById('kalenderAdminEmployeeFilter').value;
   const container = document.getElementById('kalenderAdminContainer');
 
   if (!employeeId) {
-    container.innerHTML = 'Pilih karyawan untuk melihat kalender';
+    container.innerHTML = '<div class="empty-state"><i data-lucide="calendar-days"></i>Pilih karyawan untuk melihat kalender</div>';
+    if (window.lucide) window.lucide.createIcons();
     return;
   }
 
+  populateKalenderAdminMonthFilter();
+  const monthValue = document.getElementById('kalenderAdminMonthFilter').value ||
+    (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
+
   try {
-    const now = new Date();
-    const tahunNum = now.getFullYear();
-    const bulanNum = now.getMonth() + 1;
+    const [tahun, bulan] = monthValue.split('-');
+    const tahunNum = parseInt(tahun, 10);
+    const bulanNum = parseInt(bulan, 10);
     const startDateStr = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-01';
     const endDateObj = new Date(tahunNum, bulanNum, 1);
     const endDateStr = endDateObj.getFullYear() + '-' + String(endDateObj.getMonth() + 1).padStart(2, '0') + '-01';
-    const todayStr = tahunNum + '-' + String(bulanNum).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     const daysInMonth = getDaysInMonth(tahunNum, bulanNum);
+
+    const { data: empData } = await supabaseClient
+      .from('employees')
+      .select('tanggal_masuk, created_at')
+      .eq('id', employeeId)
+      .maybeSingle();
+    const joinDateStr = empData?.tanggal_masuk || (empData?.created_at ? String(empData.created_at).slice(0, 10) : null);
 
     const { data: attData, error: attError } = await supabaseClient
       .from('attendance')
@@ -402,7 +430,7 @@ export async function loadKalenderAdmin() {
       dayDataMap[l.start_date] = 'cuti';
     });
 
-    renderCalendarGrid('kalenderAdminContainer', tahunNum, bulanNum, dayDataMap);
+    renderCalendarGrid('kalenderAdminContainer', tahunNum, bulanNum, dayDataMap, joinDateStr);
 
   } catch (err) {
     console.error('loadKalenderAdmin error:', err);

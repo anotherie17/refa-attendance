@@ -753,11 +753,6 @@ canvas { display: none; }
 .form-modal-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
 .form-modal-actions { display: flex; gap: 8px; margin-top: 20px; }
 .form-modal-actions button { margin-top: 0; flex: 1; }
-.uid-instruction-box {
-  background: var(--info-soft); border: 1px solid var(--info-line); border-radius: var(--r-sm);
-  padding: 12px 14px; font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 14px;
-}
-.uid-instruction-box code { background: var(--surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
 
 /* ===== PROFILE ===== */
 .profile-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-2); font-size: 13px; }

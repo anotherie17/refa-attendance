@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { getTodayWITA } from '../utils/helpers.js';
 
 // ===== Sapaan acak ala chat di bawah hero =====
 // Konsep: rekan kerja yang santai + sering nyelipin perhatian kecil.
@@ -70,6 +71,13 @@ const PERHATIAN = [
   'Semoga harimu ga bikin kamu abis, {nama}'
 ];
 
+// Sapaan khusus pas hari ulang tahun karyawan sendiri — menang di atas SANTAI/PERHATIAN.
+const BIRTHDAY = [
+  'Selamat ulang tahun, {nama}! 🎉 Semoga sehat & lancar terus.',
+  '{nama}, happy birthday! Makin keren, makin semangat kerja.',
+  'Met ultah {nama}! Semoga tahun ini banyak hal baik buat kamu.'
+];
+
 // Ambil nama pendek (kata pertama). Kalau kata pertama pendek/berakhiran titik
 // (mis. "St."), gabung dengan kata berikutnya.
 function shortName(full) {
@@ -77,6 +85,14 @@ function shortName(full) {
   let s = parts[0];
   if (parts[1] && (s.endsWith('.') || s.length <= 2)) s = s + ' ' + parts[1];
   return s;
+}
+
+// Cek apakah hari ini (WITA) sama bulan & tanggal dengan tanggal_lahir karyawan.
+function isBirthdayToday(tanggalLahir) {
+  if (!tanggalLahir) return false;
+  const mmdd = getTodayWITA().slice(5); // 'MM-DD'
+  const lahirMmdd = String(tanggalLahir).slice(5, 10);
+  return !!lahirMmdd && mmdd === lahirMmdd;
 }
 
 function shuffle(arr) {
@@ -122,7 +138,9 @@ export function showGreetingBubble() {
   if (!wrap || !bubble || !textEl) return;
 
   const nama = shortName(state.currentEmployee && state.currentEmployee.nama);
-  const text = nextTemplate().replaceAll('{nama}', nama);
+  const birthday = isBirthdayToday(state.currentEmployee?.tanggal_lahir);
+  const template = birthday ? BIRTHDAY[Math.floor(Math.random() * BIRTHDAY.length)] : nextTemplate();
+  const text = template.replaceAll('{nama}', nama);
 
   // reset & mulai state "typing"
   if (state.greetingTimer) { clearTimeout(state.greetingTimer); state.greetingTimer = null; }

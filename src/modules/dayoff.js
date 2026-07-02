@@ -1,9 +1,7 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
 import { showError, showSuccess, showConfirm } from '../utils/modal.js';
-import { getErrorMessage, getWeekStart, formatDateLabel, skeletonList } from '../utils/helpers.js';
-
-const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+import { getErrorMessage, getWeekStart, formatDateLabel, skeletonList, HARI_LABELS as HARI } from '../utils/helpers.js';
 
 function addDays(dateStr, n) {
   const [y, m, d] = dateStr.split('-').map(Number);

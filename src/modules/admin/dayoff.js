@@ -1,9 +1,7 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess, showConfirm } from '../../utils/modal.js';
-import { getErrorMessage, formatDateLabel , escapeHtml} from '../../utils/helpers.js';
-
-const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+import { getErrorMessage, formatDateLabel, escapeHtml, HARI_LABELS as HARI } from '../../utils/helpers.js';
 
 export async function loadAdminDayOffRequests() {
   const container = document.getElementById('adminDayOffList');

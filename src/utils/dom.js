@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { supabaseClient } from '../services/supabase.js';
-import { formatShiftLabel, formatAttendanceTime, getAttendanceStatusLabel, getDaysInMonth, formatDateLabel } from './helpers.js';
+import { formatShiftLabel, formatAttendanceTime, getAttendanceStatusLabel, getDaysInMonth, formatDateLabel, getTodayWITA } from './helpers.js';
 import { showGreetingBubble } from '../modules/greeting.js';
 
 // ===== PAGE NAVIGATION =====
@@ -114,7 +114,7 @@ export function updateUserInfo() {
   const ktpEl = document.getElementById('profileKtpImg');
   if (ktpEl) {
     if (state.currentEmployee.ktp_url) {
-      ktpEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Memuat...</span>';
+      ktpEl.innerHTML = '<span class="ktp-loading"><span class="spinner"></span>Memuat KTP...</span>';
       supabaseClient.storage.from('ktp').createSignedUrl(state.currentEmployee.ktp_url, 3600)
         .then(({ data }) => {
           ktpEl.innerHTML = data?.signedUrl
@@ -205,14 +205,13 @@ export function updateHeroState() {
   });
 }
 
+// Jam & tanggal header SELALU WITA (Asia/Makassar), bukan timezone device,
+// supaya konsisten dengan tanggal/status yang dihitung server.
 export function updateClock() {
   const now = new Date();
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  
-  const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  const dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
-  
+  const timeStr = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit', hour12: false });
+  const dateStr = now.toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', weekday: 'long', day: 'numeric', month: 'long' });
+
   const el = document.getElementById('currentDateTime');
   if (el) el.textContent = timeStr + ' | ' + dateStr;
 }
@@ -307,7 +306,9 @@ export function closeEmployeeForm() {
 }
 
 // ===== KALENDER GRID =====
-export function renderCalendarGrid(containerId, year, month, dayDataMap) {
+// joinDateStr (opsional): tanggal_masuk karyawan ('YYYY-MM-DD'). Hari sebelum tanggal ini
+// tidak ditandai "Tidak Hadir" karena karyawan belum bekerja di REFA saat itu.
+export function renderCalendarGrid(containerId, year, month, dayDataMap, joinDateStr) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -317,8 +318,7 @@ export function renderCalendarGrid(containerId, year, month, dayDataMap) {
   const daysInMonth = getDaysInMonth(year, month);
   const monthLabel = firstDay.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-  const todayObj = new Date();
-  const todayStr = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0');
+  const todayStr = getTodayWITA();
 
   let html = '<div style="text-align:center;font-weight:700;font-size:13px;color:var(--text);margin-bottom:8px;">' + monthLabel + '</div>';
   html += '<div class="cal-grid">';
@@ -330,8 +330,10 @@ export function renderCalendarGrid(containerId, year, month, dayDataMap) {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    // Hari lampau tanpa catatan (absen/cuti/izin/off) = tidak hadir (merah).
-    const status = dayDataMap[dateStr] || (dateStr < todayStr ? 'absen' : '');
+    // Hari lampau tanpa catatan (absen/cuti/izin/off) = tidak hadir (merah) —
+    // KECUALI sebelum tanggal masuk karyawan (belum kerja di REFA, jangan ditandai alpa).
+    const beforeJoin = joinDateStr && dateStr < joinDateStr;
+    const status = dayDataMap[dateStr] || (!beforeJoin && dateStr < todayStr ? 'absen' : '');
     const isToday = dateStr === todayStr;
     html += '<div class="cal-day ' + status + (isToday ? ' today' : '') + '">' + d + '</div>';
   }

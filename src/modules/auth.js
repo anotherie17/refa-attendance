@@ -189,9 +189,11 @@ export async function checkExistingSession() {
   }
 }
 
-export async function logout() {
-  const ok = await showConfirm('Keluar dari Aplikasi?', 'Kamu perlu login lagi untuk masuk kembali.', 'Ya, Keluar');
-  if (!ok) return;
+export async function logout(skipConfirm) {
+  if (!skipConfirm) {
+    const ok = await showConfirm('Keluar dari Aplikasi?', 'Kamu perlu login lagi untuk masuk kembali.', 'Ya, Keluar');
+    if (!ok) return;
+  }
 
   // Kosongkan state DULU supaya listener onAuthStateChange tahu ini logout manual,
   // bukan sesi kedaluwarsa.
