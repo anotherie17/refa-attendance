@@ -208,6 +208,10 @@ button {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  /* Hilangin ambiguitas gesture double-tap-to-zoom di browser mobile — beberapa
+     device butuh ~300ms nunggu buat mastiin ini bukan double-tap, kadang kerasa
+     kayak "harus ditekan 2x". touch-action:manipulation matiin nunggu itu. */
+  touch-action: manipulation;
   transition: background .15s, box-shadow .15s, transform .08s, border-color .15s, color .15s;
   margin-top: 10px;
   box-shadow: var(--shadow-xs);
@@ -1000,6 +1004,9 @@ input.input-error, textarea.input-error, select.input-error {
 .need-approval:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+[role="button"], .faq-item summary, .ktp-spoiler-btn, .quick-tab, .admin-tab {
+  touch-action: manipulation;
 }
 
 /* ===== FAQ / Bantuan (Profil) — native <details>, tanpa JS tambahan ===== */

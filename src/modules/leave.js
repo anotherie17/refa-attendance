@@ -70,6 +70,7 @@ export async function submitLeaveRequest() {
 
 export async function loadLeaveRequests() {
   const listEl = document.getElementById('leaveHistoryList');
+  if (!listEl || !state.currentEmployee?.id) return;
   try {
     const { data, error } = await supabaseClient
       .from('leave_requests')

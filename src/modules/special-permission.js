@@ -59,7 +59,7 @@ export async function submitSpecialPermission() {
 
 export async function loadSpecialPermissions() {
   const listEl = document.getElementById('izinHistoryList');
-  if (!listEl) return;
+  if (!listEl || !state.currentEmployee?.id) return;
 
   try {
     const { data, error } = await supabaseClient
