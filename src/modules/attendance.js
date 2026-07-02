@@ -43,8 +43,11 @@ function resetPhotoPreview() {
     preview.classList.add('empty');
     preview.textContent = 'Foto belum diambil';
   }
+<<<<<<< HEAD
   const ulangBtn = document.getElementById('fotoUlangBtn');
   if (ulangBtn) ulangBtn.style.display = 'none';
+=======
+>>>>>>> cc46b6d0c43166bdc3676d2f4bd3137944a69660
 }
 
 async function uploadSelfie(prefix) {
@@ -167,6 +170,7 @@ export function capturePhoto() {
 
   if (preview) {
     preview.classList.remove('empty');
+<<<<<<< HEAD
     preview.innerHTML = '<img src="' + state.photoData + '" alt="Selfie" style="width:100%;border-radius:10px;display:block;" />';
 
     // Tombol "Foto Ulang" DI LUAR kotak preview (kotaknya overflow:hidden,
@@ -183,6 +187,12 @@ export function capturePhoto() {
       preview.insertAdjacentElement('afterend', ulangBtn);
     }
     ulangBtn.style.display = 'block';
+=======
+    preview.innerHTML = '<img src="' + state.photoData + '" alt="Selfie" style="width:100%;border-radius:10px;display:block;" />' +
+      '<button type="button" id="fotoUlangBtn" class="secondary-btn" style="width:100%;margin-top:8px;"><i data-lucide="rotate-ccw"></i> Foto Ulang</button>';
+    const ulangBtn = preview.querySelector('#fotoUlangBtn');
+    if (ulangBtn) ulangBtn.addEventListener('click', startCamera);
+>>>>>>> cc46b6d0c43166bdc3676d2f4bd3137944a69660
     if (window.lucide) window.lucide.createIcons();
   }
 
