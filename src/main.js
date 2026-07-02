@@ -23,60 +23,6 @@ import { initThemeToggle } from './utils/theme.js';
 // ===== BOOTSTRAP =====
 document.addEventListener('DOMContentLoaded', async () => {
 
-  // ===== Banner offline =====
-  // navigator.onLine tidak reliable (cuma ngecek radio WiFi/data nyala,
-  // bukan konektivitas beneran ke internet). Jadi kalau browser bilang
-  // offline, kita verifikasi dulu dengan fetch ringan ke server sendiri
-  // (same-origin, tidak butuh CORS/API key) sebelum nampilin banner.
-  // Kalau banner sudah tampil, kita coba cek ulang tiap beberapa detik
-  // supaya otomatis hilang begitu koneksi pulih.
-  const offlineBanner = document.getElementById('offlineBanner');
-  let connectivityCheckTimer = null;
-
-  async function isReallyOnline() {
-    if (!navigator.onLine) return false;
-    try {
-      const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 4000);
-      // Fetch index.html sendiri (same-origin) supaya tidak kena isu
-      // CORS/apikey seperti kalau langsung fetch ke Supabase.
-      await fetch('./index.html?_=' + Date.now(), {
-        method: 'GET',
-        cache: 'no-store',
-        signal: ctrl.signal
-      });
-      clearTimeout(timeout);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async function updateOnline() {
-    const online = await isReallyOnline();
-    if (offlineBanner) offlineBanner.hidden = online;
-
-    if (!online) {
-      if (!connectivityCheckTimer) {
-        connectivityCheckTimer = setInterval(async () => {
-          const backOnline = await isReallyOnline();
-          if (backOnline) {
-            if (offlineBanner) offlineBanner.hidden = true;
-            clearInterval(connectivityCheckTimer);
-            connectivityCheckTimer = null;
-          }
-        }, 5000);
-      }
-    } else if (connectivityCheckTimer) {
-      clearInterval(connectivityCheckTimer);
-      connectivityCheckTimer = null;
-    }
-  }
-
-  window.addEventListener('online', updateOnline);
-  window.addEventListener('offline', updateOnline);
-  updateOnline();
-
   // ===== Deteksi sesi Supabase habis (revoke/refresh gagal) =====
   supabaseClient?.auth.onAuthStateChange((event) => {
     // Kalau state.currentEmployee masih ada saat SIGNED_OUT, berarti bukan

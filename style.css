@@ -920,22 +920,6 @@ html[data-theme="dark"] select {
 .theme-toggle button .lucide { width: 15px; height: 15px; }
 
 /* ===== Batch 2: feedback ramah ===== */
-.offline-banner {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 3000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--error);
-}
-.offline-banner i { width: 16px; height: 16px; }
-
 .field-error {
   margin-top: 6px;
   font-size: 12.5px;
