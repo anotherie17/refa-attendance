@@ -170,6 +170,32 @@ sudah false (dikecualikan).
 aktif untuk 10 karyawan; Nurul Ayu dikecualikan), semua sesi sudah ditutup
 (user login ulang → karyawan kena layar ganti password).
 
+**Sesi 2 Jul 2026 (UI/UX + performa + keamanan, Batch 1-7)**
+- B1: Semua teks UI Bahasa Indonesia (Absen Masuk/Keluar, Setujui/Tolak, pill
+  Disetujui/Menunggu/Ditolak), tanggal seragam via formatDateLabel.
+- B2: Toast absen sukses, inline field error (showFieldError), konfirmasi logout,
+  deteksi sesi habis (onAuthStateChange), banner offline, checklist password
+  hidup. Fix: guard _submitting dayoff, showModal dobel.
+- B3: Step 1-2-3 + centang "Beres" di kartu absen, tombol Foto Ulang, kalender
+  tandai Tidak Hadir merah (+ izin approved dihitung), legend pakai token.
+  Fix: approve/reject cuti tetap di tab Approval.
+- B4: Spoiler "Lihat KTP" di list karyawan (signed URL lazy saat diketuk),
+  inputmode numeric saldo/jatah cuti, email type=email, date picker min hari ini.
+- B5: 100dvh, kontras --muted-2 naik, focus-visible, aria-label toggle password,
+  dark mode DRY (blok @media dihapus; 'auto' di-resolve JS jadi data-theme),
+  line ending LF semua, elemen mati dihapus (todayStatus, field Auth UID manual;
+  update karyawan tidak lagi menyentuh kolom auth_id).
+- B6: Riwayat & kalender pribadi filter bulan di server (gte/lt); group-by Map
+  (groupRowsByEmployee) ganti filter-dalam-map; Chart.js/XLSX/jsPDF lazy-load
+  hanya di admin (src/utils/lazy-libs.js), script tag dihapus dari index.html.
+- B7: Absen pindah ke RPC checkin/checkout_attendance (validasi lokasi/telat/
+  tanggal WITA di server; computeMasukStatus klien dihapus); escapeHtml() untuk
+  semua data user ke innerHTML (anti stored-XSS). Verifikasi DB: unique
+  (employee_id,tanggal) TERNYATA sudah ada; approve_leave_request sudah punya
+  guard superadmin. Edge function create-employee v3 DEPLOYED: karyawan baru
+  otomatis must_change_password=true. Leaked Password Protection: user memilih
+  skip.
+
 **Perlu tindakan user:**
 - Deploy build terbaru (WITA+kamera, greeting bubble, admin cross-check) bila
   belum — fitur app-side menumpuk di zip, tidak otomatis live.

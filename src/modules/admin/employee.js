@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess, showConfirm, showModal } from '../../utils/modal.js';
-import { getErrorMessage, formatDateLabel, compressImage } from '../../utils/helpers.js';
+import { getErrorMessage, formatDateLabel, compressImage , escapeHtml} from '../../utils/helpers.js';
 import { closeEmployeeForm } from '../../utils/dom.js';
 import { openKtpCropper, KTP_OUTPUT } from '../../utils/ktp-cropper.js';
 
@@ -100,16 +100,23 @@ export async function loadEmployeeList() {
 
       return `
         <div class="employee-card ${emp.is_active ? '' : 'inactive'}">
-          <div class="employee-name">${emp.nama}</div>
+          <div class="employee-name">${escapeHtml(emp.nama)}</div>
           <div class="employee-meta">
-            ${emp.jabatan || 'Belum ada jabatan'} · ${roleLabel}<br>
-            ${emp.email}<br>
+            ${escapeHtml(emp.jabatan || 'Belum ada jabatan')} · ${roleLabel}<br>
+            ${escapeHtml(emp.email)}<br>
             Tanggal masuk: ${tanggalMasuk}<br>
             Tanggal lahir: ${tanggalLahir}<br>
             Saldo cuti: ${emp.leave_balance ?? 0} / ${emp.leave_entitlement ?? 0} hari<br>
             ${authStatus}
           </div>
           ${statusLabel}
+          ${emp.ktp_url ? `
+          <div class="ktp-spoiler">
+            <button type="button" class="ktp-spoiler-btn" data-ktp-path="${emp.ktp_url}" aria-expanded="false">
+              <i data-lucide="id-card"></i> Lihat KTP <i data-lucide="chevron-down" class="ktp-chevron"></i>
+            </button>
+            <div class="ktp-spoiler-body" hidden></div>
+          </div>` : ''}
           <div class="employee-actions">
             <button class="btn-neutral employee-edit-btn" data-employee-id="${emp.id}">Edit</button>
             <button class="${emp.is_active ? 'btn-reject' : 'btn-approve'} employee-toggle-btn" data-employee-id="${emp.id}" data-active="${emp.is_active}">
@@ -123,6 +130,40 @@ export async function loadEmployeeList() {
   } catch (err) {
     console.error(err);
     container.innerHTML = '<div class="empty-state"><i data-lucide="circle-alert"></i>Gagal memuat data karyawan. Coba refresh halaman.</div>';
+  }
+}
+
+// Spoiler KTP di list: signed URL (1 jam) baru dibuat saat pertama kali diketuk.
+export async function toggleKtpSpoiler(btn) {
+  const body = btn.parentElement.querySelector('.ktp-spoiler-body');
+  if (!body) return;
+
+  const isOpen = btn.getAttribute('aria-expanded') === 'true';
+  if (isOpen) {
+    body.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  btn.setAttribute('aria-expanded', 'true');
+  body.hidden = false;
+
+  // Sudah pernah dimuat? Tinggal tampilkan lagi, jangan bikin signed URL baru.
+  if (body.dataset.loaded === '1') return;
+
+  body.innerHTML = '<span class="ktp-loading"><span class="spinner"></span>Memuat KTP...</span>';
+  try {
+    const { data: signed, error } = await supabaseClient.storage
+      .from('ktp')
+      .createSignedUrl(btn.dataset.ktpPath, 3600);
+    if (error) throw error;
+    if (!signed?.signedUrl) throw new Error('Signed URL kosong.');
+    body.innerHTML = '<img src="' + signed.signedUrl + '" alt="Foto KTP" style="max-width:100%;border-radius:8px;border:1px solid var(--line);display:block;">';
+    body.dataset.loaded = '1';
+  } catch (err) {
+    console.error('toggleKtpSpoiler error:', err);
+    body.innerHTML = '<span style="color:var(--error);font-size:12px;">Gagal memuat KTP. Ketuk lagi untuk coba ulang.</span>';
+    body.dataset.loaded = '';
   }
 }
 
@@ -144,7 +185,6 @@ export async function loadEmployeeToForm(employeeId) {
     document.getElementById('empFormRole').value = data.role || 'karyawan';
     document.getElementById('empFormLeaveBalance').value = data.leave_balance ?? 0;
     document.getElementById('empFormLeaveEntitlement').value = data.leave_entitlement ?? 0;
-    document.getElementById('empFormAuthId').value = data.auth_id || '';
     document.getElementById('empFormPhone').value = data.nomor_telepon || '';
 
     const ktpFileEl = document.getElementById('empFormKtpFile');
@@ -176,7 +216,6 @@ export async function saveEmployee() {
   const role = document.getElementById('empFormRole').value;
   const leaveBalanceRaw = document.getElementById('empFormLeaveBalance').value.trim();
   const leaveEntitlementRaw = document.getElementById('empFormLeaveEntitlement').value.trim();
-  const authIdRaw = document.getElementById('empFormAuthId').value.trim();
   const password = document.getElementById('empFormPassword') ? document.getElementById('empFormPassword').value : '';
   const phone = document.getElementById('empFormPhone').value.trim();
   const ktpFileEl = document.getElementById('empFormKtpFile');
@@ -239,8 +278,8 @@ export async function saveEmployee() {
     };
 
     if (state.editingEmployeeId) {
-      payload.auth_id = authIdRaw || null;
-
+      // auth_id tidak lagi diedit manual — dikelola otomatis oleh edge function
+      // create-employee saat akun dibuat. Update TIDAK menyentuh kolom auth_id.
       const ktpPath = await uploadKtp(state.editingEmployeeId);
       if (ktpPath !== undefined) payload.ktp_url = ktpPath;
 

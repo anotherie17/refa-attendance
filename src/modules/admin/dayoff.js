@@ -1,7 +1,7 @@
 import { state } from '../../state.js';
 import { supabaseClient } from '../../services/supabase.js';
 import { showError, showSuccess, showConfirm } from '../../utils/modal.js';
-import { getErrorMessage, formatDateLabel } from '../../utils/helpers.js';
+import { getErrorMessage, formatDateLabel , escapeHtml} from '../../utils/helpers.js';
 
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -27,13 +27,13 @@ export async function loadAdminDayOffRequests() {
       const hari = HARI[new Date(item.off_date + 'T12:00:00').getDay()];
       return `
       <div class="admin-leave-card">
-        <div class="admin-leave-name">${item.employees?.nama || 'Tidak diketahui'}</div>
+        <div class="admin-leave-name">${escapeHtml(item.employees?.nama || 'Tidak diketahui')}</div>
         <div class="admin-leave-date">Hari off: ${hari}, ${formatDateLabel(item.off_date)}</div>
-        <span class="status-warning">Pending</span>
+        <span class="status-warning">Menunggu</span>
         ${canAct ? `
         <div class="admin-leave-actions">
-          <button class="btn-dayoff-approve" data-dayoff-id="${item.id}">Approve</button>
-          <button class="btn-dayoff-reject" data-dayoff-id="${item.id}">Reject</button>
+          <button class="btn-dayoff-approve" data-dayoff-id="${item.id}">Setujui</button>
+          <button class="btn-dayoff-reject" data-dayoff-id="${item.id}">Tolak</button>
         </div>` : `
         <div class="admin-leave-note" style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic;">Hanya superadmin yang dapat menyetujui / menolak.</div>`}
       </div>`;

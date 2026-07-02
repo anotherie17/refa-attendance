@@ -95,6 +95,7 @@ export async function submitDayOff(weekStart) {
   if (!select) return;
   const offDate = select.value;
 
+  _submitting = true;
   try {
     const { data: existing, error: exErr } = await supabaseClient
       .from('day_off_requests')

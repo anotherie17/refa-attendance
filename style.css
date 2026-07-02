@@ -24,7 +24,7 @@
   --text:      #1f1c17;
   --text-2:    #44403a;
   --muted:     #78716a;
-  --muted-2:   #a8a298;
+  --muted-2:   #8d877c;
   --line:      #e9e3d9;  /* hairline dilembutkan + dihangatkan */
   --line-2:    #f2ede5;
 
@@ -68,6 +68,7 @@ body {
   font-family: var(--font);
   background: var(--bg);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,6 +83,7 @@ body {
   width: 100%;
   max-width: 420px;
   height: 100vh;
+  height: 100dvh;
   max-height: 880px;
   background: var(--bg); /* kanvas hangat di dalam frame → card mengambang */
   border: 1px solid var(--line);
@@ -839,7 +841,8 @@ canvas { display: none; }
 /* ===== MOBILE ===== */
 @media (max-width: 480px) {
   body { padding: 0; align-items: stretch; }
-  .container { border-radius: 0; max-width: 100%; max-height: none; min-height: 100vh; box-shadow: none; border: none; }
+  .container { border-radius: 0; max-width: 100%; max-height: none; min-height: 100vh;
+  min-height: 100dvh; box-shadow: none; border: none; }
   .top-bar { margin: 12px 12px 0; padding: 16px; border-radius: var(--r-md); }
   .top-bar h1 { font-size: 19px; }
   .content-area { padding: 14px 12px 24px; }
@@ -857,54 +860,11 @@ canvas { display: none; }
    Hero oranye TIDAK disentuh sama sekali (sudah hardcode gradient,
    sengaja tetap terang di kedua mode — sesuai keputusan user).
 
-   Cara aktif (2 jalur, sesuai keputusan user):
-   1) Otomatis ikut sistem  -> @media (prefers-color-scheme: dark),
-      hanya berlaku kalau user BELUM pernah pilih manual
-      (ditandai dengan TIDAK ADA atribut [data-theme] di <html>).
-   2) Override manual        -> <html data-theme="dark"> / "light",
-      diset oleh toggle di halaman Profil (lihat src/utils/theme.js).
-      Manual selalu menang, apapun pengaturan sistemnya.
+   Satu-satunya sumber token gelap: html[data-theme="dark"].
+   Mode 'auto' di-resolve oleh JS (inline script di <head> + theme.js)
+   menjadi data-theme="dark"/tanpa atribut mengikuti sistem, jadi tidak
+   perlu blok @media prefers-color-scheme kembar lagi.
    ============================================================ */
-
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme]) {
-    --bg:        #1c1a17;
-    --surface:   #252220;  /* card sedikit lebih terang dari kanvas → tetap "mengambang" */
-    --surface-2: #2c2925;  /* inset/recessed */
-    --text:      #f3f0ea;
-    --text-2:    #cfc9c0;
-    --muted:     #9a948a;
-    --muted-2:   #6f6a62;
-    --line:      #3a362f;
-    --line-2:    #2f2c27;
-
-    --brand-soft: #3a2a1c;
-    --brand-tint: #4a3322;
-
-    --success-soft: #15301f; --success-line: #1f5132;
-    --warning-soft: #382a12; --warning-line: #5a4118;
-    --error-soft:   #3a1c1c; --error-line:   #5c2626;
-    --info-soft:    #16263d; --info-line:    #2c4566;
-
-    --libur-bg: #2f2c27; --libur-fg: #948e83;
-    --skeleton-mid: #353129;
-
-    --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
-    --shadow-md: 0 6px 16px rgba(0,0,0,.45);
-    --shadow-lg: 0 16px 40px rgba(0,0,0,.55);
-  }
-
-  html:not([data-theme]) input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-  }
-
-  html:not([data-theme]) select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a948a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-  }
-}
 
 html[data-theme="dark"] {
   --bg:        #1c1a17;
@@ -913,7 +873,7 @@ html[data-theme="dark"] {
   --text:      #f3f0ea;
   --text-2:    #cfc9c0;
   --muted:     #9a948a;
-  --muted-2:   #6f6a62;
+  --muted-2:   #857f75;
   --line:      #3a362f;
   --line-2:    #2f2c27;
 
@@ -958,3 +918,108 @@ html[data-theme="dark"] select {
   border-color: var(--brand-tint);
 }
 .theme-toggle button .lucide { width: 15px; height: 15px; }
+
+/* ===== Batch 2: feedback ramah ===== */
+.offline-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--error);
+}
+.offline-banner i { width: 16px; height: 16px; }
+
+.field-error {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--error);
+}
+input.input-error, textarea.input-error, select.input-error {
+  border-color: var(--error) !important;
+}
+
+.pw-checklist {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.pw-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pw-checklist li i { width: 14px; height: 14px; }
+.pw-checklist li.ok { color: var(--success); font-weight: 600; }
+
+/* ===== Batch 3: langkah absen 1-2-3 + centang ===== */
+.workflow-card .info-label { display: flex; align-items: center; gap: 8px; }
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-darker);
+  background: var(--brand-soft);
+  flex: 0 0 auto;
+}
+.step-check {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success);
+}
+.step-check i, .step-check .lucide { width: 14px; height: 14px; }
+.workflow-card.done .step-check { display: inline-flex; }
+.workflow-card.done .step-num { background: var(--success-soft); color: var(--success); }
+.workflow-card.done { border-color: var(--success-line); }
+
+/* ===== Batch 4: spoiler KTP di list karyawan ===== */
+.ktp-spoiler { margin-top: 10px; }
+.ktp-spoiler-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill, 999px);
+  cursor: pointer;
+}
+.ktp-spoiler-btn i { width: 15px; height: 15px; }
+.ktp-spoiler-btn[aria-expanded="true"] .ktp-chevron { transform: rotate(180deg); }
+.ktp-chevron { transition: transform .15s ease; }
+.ktp-spoiler-body { margin-top: 8px; }
+.ktp-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ===== Batch 5: a11y & polish ===== */
+[role="button"]:focus-visible,
+.need-approval:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

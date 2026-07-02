@@ -22,6 +22,24 @@ import { initThemeToggle } from './utils/theme.js';
 
 // ===== BOOTSTRAP =====
 document.addEventListener('DOMContentLoaded', async () => {
+
+  // ===== Banner offline =====
+  const offlineBanner = document.getElementById('offlineBanner');
+  const updateOnline = () => {
+    if (offlineBanner) offlineBanner.hidden = navigator.onLine;
+  };
+  window.addEventListener('online', updateOnline);
+  window.addEventListener('offline', updateOnline);
+  updateOnline();
+
+  // ===== Deteksi sesi Supabase habis (revoke/refresh gagal) =====
+  supabaseClient?.auth.onAuthStateChange((event) => {
+    // Kalau state.currentEmployee masih ada saat SIGNED_OUT, berarti bukan
+    // logout manual (logout() mengosongkan state dulu) -> sesi kedaluwarsa.
+    if (event === 'SIGNED_OUT' && state.currentEmployee) {
+      auth.handleSessionExpired();
+    }
+  });
   setInterval(updateClock, 1000);
   updateClock();
   initThemeToggle();
@@ -96,10 +114,13 @@ document.getElementById('togglePasswordBtn')?.addEventListener('click', () => {
   input.type = isHidden ? 'text' : 'password';
 
   btn.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '"></i>';
+  btn.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
   if (window.lucide) window.lucide.createIcons();
 });
 
 // WAJIB GANTI PASSWORD (login pertama, karyawan)
+forcePassword.initPasswordChecklist();
+
 document.getElementById('forcePasswordForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   await forcePassword.submitForcedPassword();
@@ -113,6 +134,7 @@ document.getElementById('toggleForcePasswordBtn')?.addEventListener('click', () 
   input.type = isHidden ? 'text' : 'password';
 
   btn.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '"></i>';
+  btn.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
   if (window.lucide) window.lucide.createIcons();
 });
 
@@ -185,6 +207,15 @@ document.getElementById('absenMasukBtn')?.addEventListener('click', attendance.a
 document.getElementById('absenKeluarBtn')?.addEventListener('click', attendance.absenKeluar);
 
 // LEAVE (User)
+// Tanggal cuti & izin minimal hari ini (WITA) — tidak bisa pilih tanggal lampau.
+{
+  const todayWita = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  const leaveDateEl = document.getElementById('leaveDate');
+  const izinDateEl = document.getElementById('izinStartDate');
+  if (leaveDateEl) leaveDateEl.min = todayWita;
+  if (izinDateEl) izinDateEl.min = todayWita;
+}
+
 document.getElementById('submitLeaveBtn')?.addEventListener('click', leave.submitLeaveRequest);
 
 // PENGAJUAN SUB-TAB (Cuti / Libur / Izin Khusus)
@@ -321,6 +352,12 @@ document.getElementById('adminSpecialPermissionList')?.addEventListener('click',
 
 // Admin Employee: Edit & Toggle
 document.getElementById('adminEmployeeList')?.addEventListener('click', async (e) => {
+  const ktpBtn = e.target.closest('.ktp-spoiler-btn');
+  if (ktpBtn) {
+    await adminEmployee.toggleKtpSpoiler(ktpBtn);
+    return;
+  }
+
   const editBtn = e.target.closest('.employee-edit-btn');
   if (editBtn) {
     const id = editBtn.dataset.employeeId;
