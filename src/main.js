@@ -1,6 +1,5 @@
 // ===== ENTRY POINT: ORCHESTRATOR & EVENT REGISTRY =====
 import { state } from './state.js';
-import { SUPABASE_URL } from './config.js';
 import { supabaseClient } from './services/supabase.js';
 import { showError } from './utils/modal.js';
 import { switchSection, switchAdminTab, switchAbsensiView, switchPengajuanView, updateClock, openEmployeeForm, closeEmployeeForm } from './utils/dom.js';
@@ -27,9 +26,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ===== Banner offline =====
   // navigator.onLine tidak reliable (cuma ngecek radio WiFi/data nyala,
   // bukan konektivitas beneran ke internet). Jadi kalau browser bilang
-  // offline, kita verifikasi dulu dengan fetch ringan sebelum nampilin
-  // banner. Kalau banner sudah tampil, kita coba cek ulang tiap beberapa
-  // detik supaya otomatis hilang begitu koneksi pulih.
+  // offline, kita verifikasi dulu dengan fetch ringan ke server sendiri
+  // (same-origin, tidak butuh CORS/API key) sebelum nampilin banner.
+  // Kalau banner sudah tampil, kita coba cek ulang tiap beberapa detik
+  // supaya otomatis hilang begitu koneksi pulih.
   const offlineBanner = document.getElementById('offlineBanner');
   let connectivityCheckTimer = null;
 
@@ -38,7 +38,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const ctrl = new AbortController();
       const timeout = setTimeout(() => ctrl.abort(), 4000);
-      await fetch(SUPABASE_URL + '/auth/v1/health?_=' + Date.now(), {
+      // Fetch index.html sendiri (same-origin) supaya tidak kena isu
+      // CORS/apikey seperti kalau langsung fetch ke Supabase.
+      await fetch('./index.html?_=' + Date.now(), {
         method: 'GET',
         cache: 'no-store',
         signal: ctrl.signal
